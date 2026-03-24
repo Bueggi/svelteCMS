@@ -1,0 +1,2 @@
+-- Migration 0000 cleared manually to resolve conflict with existing DB state
+-- The DB already has these tables/types.

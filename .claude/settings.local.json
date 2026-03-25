@@ -39,7 +39,9 @@
       "Bash(grep -n \"videoUrl\\\\|Video\\\\|youtube\\\\|vimeo\" src/routes/\\\\\\(app\\\\\\)/admin/courses/[id]/lessons/[lessonId]/+page.svelte)",
       "Bash(find C:UserschrisDocumentsDevelopmentsveltecCoursessrc -type f \\\\\\(-name *purchase* -o -name *invoice* -o -name *billing* \\\\\\))",
       "Bash(npx tsx:*)",
-      "Bash(grep -r ^s*//s* /c/Users/chris/Documents/Development/sveltecCourses/src --include=*.ts --include=*.js --include=*.svelte)"
+      "Bash(grep -r ^s*//s* /c/Users/chris/Documents/Development/sveltecCourses/src --include=*.ts --include=*.js --include=*.svelte)",
+      "Bash(ssh-keygen:*)",
+      "Bash(openssl rand:*)"
     ]
   }
 }

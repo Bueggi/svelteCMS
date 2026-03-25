@@ -25,7 +25,7 @@
     <DropdownMenuTrigger>
         <Button variant="ghost" class="relative h-8 w-8 rounded-full">
             <Avatar class="h-8 w-8">
-                <AvatarImage src={user.image} alt={user.name} />
+                {#if user.image}<AvatarImage src={user.image} alt={user.name} />{/if}
                 <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
         </Button>

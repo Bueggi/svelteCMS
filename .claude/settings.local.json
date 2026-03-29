@@ -41,7 +41,8 @@
       "Bash(npx tsx:*)",
       "Bash(grep -r ^s*//s* /c/Users/chris/Documents/Development/sveltecCourses/src --include=*.ts --include=*.js --include=*.svelte)",
       "Bash(ssh-keygen:*)",
-      "Bash(openssl rand:*)"
+      "Bash(openssl rand:*)",
+      "Bash(xargs grep:*)"
     ]
   }
 }

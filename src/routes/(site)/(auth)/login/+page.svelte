@@ -24,9 +24,6 @@
         }
     }
 
-    function onKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter') handleLogin();
-    }
 </script>
 
 <svelte:head><title>Sign In</title></svelte:head>
@@ -47,7 +44,7 @@
             <p class="text-sm text-muted-foreground">Enter your credentials to continue.</p>
         </div>
 
-        <div class="space-y-4">
+        <form class="space-y-4" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
             {#if error}
                 <p class="text-sm text-destructive bg-destructive/8 border border-destructive/15 px-4 py-3 rounded-xl">{error}</p>
             {/if}
@@ -60,7 +57,6 @@
                     placeholder="you@example.com"
                     bind:value={email}
                     disabled={isLoading}
-                    onkeydown={onKeydown}
                 />
             </div>
 
@@ -73,7 +69,6 @@
                         placeholder="••••••••"
                         bind:value={password}
                         disabled={isLoading}
-                        onkeydown={onKeydown}
                         class="pr-10!"
                     />
                     <button
@@ -88,8 +83,7 @@
             </div>
 
             <button
-                type="button"
-                onclick={handleLogin}
+                type="submit"
                 disabled={isLoading}
                 class="submit-btn"
             >
@@ -99,7 +93,7 @@
                     Sign in
                 {/if}
             </button>
-        </div>
+        </form>
 
         <p class="text-center text-sm text-muted-foreground">
             No account?

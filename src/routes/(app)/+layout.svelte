@@ -151,7 +151,7 @@
 
                 <div class="p-4 border-t border-border/50 bg-muted/20">
                     <div class="flex items-center gap-3 px-2">
-                        <UserMenu {user} />
+                        {#if user}<UserMenu {user} />{/if}
                         <div class="flex flex-col min-w-0">
                             <span class="text-sm font-medium truncate">{user?.name}</span>
                             <span class="text-xs text-muted-foreground truncate uppercase tracking-tighter">{user?.role}</span>

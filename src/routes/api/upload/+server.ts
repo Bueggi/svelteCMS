@@ -51,7 +51,12 @@ export const POST: RequestHandler = async ({ request, locals, url: reqUrl }) => 
 	const now = new Date();
 	const subDir = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
 	const targetDir = join(UPLOAD_DIR, subDir);
-	if (!existsSync(targetDir)) await mkdir(targetDir, { recursive: true });
+	try {
+		if (!existsSync(targetDir)) await mkdir(targetDir, { recursive: true });
+	} catch (mkdirErr) {
+		console.error('[upload] Cannot create upload directory:', targetDir, mkdirErr);
+		return error(500, `Upload-Verzeichnis nicht erreichbar: ${UPLOAD_DIR} — bitte UPLOAD_DIR in .env prüfen`);
+	}
 
 	const base = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 	let finalExt = '.jpg';
@@ -67,6 +72,8 @@ export const POST: RequestHandler = async ({ request, locals, url: reqUrl }) => 
 	if (!SKIP_OPTIMISE.has(file.type)) {
 		try {
 			const sharp = (await import('sharp')).default;
+			// Ensure sharp is working (ARM64 / aarch64 may need native rebuild)
+
 
 			// Auto-correct EXIF orientation on all pipelines
 			let base$ = sharp(rawBuffer).rotate();
@@ -127,8 +134,11 @@ export const POST: RequestHandler = async ({ request, locals, url: reqUrl }) => 
 			const fullMeta = await sharp(fullBuf).metadata();
 			width = fullMeta.width ?? width;
 			height = fullMeta.height ?? height;
-		} catch {
-			// Fallback: save original as-is
+		} catch (sharpErr) {
+			// Sharp failed (e.g. native binary missing on ARM64) — save original as-is
+			console.warn('[upload] sharp failed, saving original:', sharpErr instanceof Error ? sharpErr.message : sharpErr);
+			const ext = file.name.match(/\.[^.]+$/)?.[0] ?? '.bin';
+			finalExt = ext;
 			await writeFile(join(targetDir, `${base}${finalExt}`), rawBuffer);
 		}
 	} else {

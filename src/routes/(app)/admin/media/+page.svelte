@@ -60,7 +60,7 @@
         if (!fileList?.length) return;
         uploading = true;
         let uploaded = 0;
-        let failed = 0;
+        const errors: string[] = [];
         try {
             for (const file of Array.from(fileList)) {
                 const fd = new FormData();
@@ -69,21 +69,23 @@
                 if (res.ok) {
                     uploaded++;
                 } else {
-                    failed++;
-                    const errData = await res.json().catch(() => ({}));
-                    console.error('Upload error:', res.status, errData);
+                    let reason = `HTTP ${res.status}`;
+                    try {
+                        const body = await res.json();
+                        reason = body.message ?? body.error ?? reason;
+                    } catch { /* non-JSON response */ }
+                    errors.push(`${file.name}: ${reason}`);
                 }
             }
             if (uploaded > 0) {
                 toast.success(`${uploaded} Datei${uploaded !== 1 ? 'en' : ''} hochgeladen`);
                 await loadFiles(true);
             }
-            if (failed > 0) {
-                toast.error(`${failed} Datei${failed !== 1 ? 'en' : ''} konnten nicht hochgeladen werden. Prüfe die Konsole für Details.`);
+            for (const msg of errors) {
+                toast.error(msg, { duration: 8000 });
             }
-        } catch (err) {
-            console.error('Upload exception:', err);
-            toast.error('Upload fehlgeschlagen');
+        } catch (err: any) {
+            toast.error(`Upload fehlgeschlagen: ${err?.message ?? 'Unbekannter Fehler'}`);
         } finally {
             uploading = false;
             (e.target as HTMLInputElement).value = '';

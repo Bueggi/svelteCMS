@@ -2,25 +2,29 @@ module.exports = {
     apps: [
         {
             name: 'lumiere',
-            script: './build/index.js',
+            // Wrapper-Skript: lädt /var/www/lumiere/.env, dann startet Node.
+            // So werden Env-Vars bei JEDEM Start (inkl. Reboot) korrekt geladen.
+            script: '/var/www/lumiere/deploy/start.sh',
+            interpreter: '/bin/bash',
             cwd: '/var/www/lumiere',
             instances: 1,
             autorestart: true,
             watch: false,
-            max_memory_restart: '512M',
-            env: {
-                NODE_ENV: 'production',
-                PORT: 3000,
-                // Alle Secrets in /var/www/lumiere/.env pflegen — NICHT hier eintragen!
-                // DATABASE_URL=postgresql://...
-                // BETTER_AUTH_SECRET=...
-                // BETTER_AUTH_URL=https://deine-domain.de
-                // STRIPE_SECRET_KEY=sk_live_...
-                // STRIPE_WEBHOOK_SECRET=whsec_...
-                // UPLOAD_DIR=/var/www/lumiere/uploads
-                // UPLOAD_URL_PREFIX=/uploads
-                // PUBLIC_BASE_URL=https://deine-domain.de  ← Wichtig für Stripe Redirect-URLs!
-            },
+            max_memory_restart: '400M',
+            // Verhindert Restart-Loops: nach einem Crash 3 Sekunden warten
+            restart_delay: 3000,
+            // Nach 10 Fehlstarts aufhören zu restarten (Fehler ist dauerhaft → brauchen Deploy)
+            max_restarts: 10,
+            // Prozess gilt als "stabil" wenn er mindestens 15 Sekunden läuft
+            min_uptime: '15s',
+            // Graceful-Shutdown: 8 Sekunden auf sauberes Beenden warten
+            kill_timeout: 8000,
+            // Fehler-Logs separat
+            error_file: '/var/log/lumiere/error.log',
+            out_file: '/var/log/lumiere/out.log',
+            merge_logs: false,
+            // Log-Rotation (PM2 logrotate Modul wird in server-setup.sh installiert)
+            log_date_format: 'YYYY-MM-DD HH:mm:ss',
         },
     ],
 };

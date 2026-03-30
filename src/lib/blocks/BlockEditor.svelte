@@ -1,7 +1,7 @@
 <script lang="ts">
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { GripVertical, Plus, Trash2, ChevronDown, ChevronUp, Save, Lock } from 'lucide-svelte';
-  import { untrack } from 'svelte';
+  import { untrack, tick } from 'svelte';
   import type { Block, BlockType } from './types';
   import { ALL_BLOCK_TYPES } from './types';
   import { createBlock, BLOCK_LABELS, BLOCK_VARIANTS } from './defaults';
@@ -21,6 +21,7 @@
   let openId = $state<string | null>(null);
   let showPicker = $state(false);
   let isSaving = $state(false);
+  let pickerEl = $state<HTMLDivElement | null>(null);
 
   let editingBlock = $derived(items.find(b => b.id === openId) as any);
 
@@ -1072,32 +1073,37 @@
       </div>
     {/if}
 
+    <button
+      type="button"
+      onclick={async () => {
+        showPicker = !showPicker;
+        if (showPicker) {
+          await tick();
+          pickerEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }}
+      class="w-full border-2 border-dashed border-border/50 hover:border-primary/40 rounded-xl py-4 text-sm text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-2"
+    >
+      <Plus class="w-4 h-4" />
+      Block hinzufügen
+    </button>
+
     {#if showPicker}
-      <div class="border border-border/60 rounded-xl p-4 bg-card">
+      <div bind:this={pickerEl} class="border border-border/60 rounded-xl p-4 bg-card">
         <p class="text-sm font-medium mb-3 text-foreground">Block-Typ wählen:</p>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
           {#each ALL_BLOCK_TYPES.filter(t => {
-            // Hide checkout in separate mode, or if one already exists in embedded mode
             if (t === 'checkout' && checkoutMode === 'separate') return false;
             if (t === 'checkout' && checkoutMode === 'embedded' && items.some(b => b.type === 'checkout')) return false;
-            // order_summary is only for thank-you pages
             if (t === 'order_summary' && context !== 'thankyou') return false;
             return true;
           }) as type}
-            <button onclick={() => addBlock(type)} class="text-left p-3 rounded-lg border border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all text-sm font-medium">
+            <button type="button" onclick={() => addBlock(type)} class="text-left p-3 rounded-lg border border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all text-sm font-medium">
               {BLOCK_LABELS[type]}
             </button>
           {/each}
         </div>
       </div>
     {/if}
-
-    <button
-      onclick={() => { showPicker = !showPicker; }}
-      class="w-full border-2 border-dashed border-border/50 hover:border-primary/40 rounded-xl py-4 text-sm text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-2"
-    >
-      <Plus class="w-4 h-4" />
-      Block hinzufügen
-    </button>
   </div>
 </div>

@@ -9,6 +9,7 @@ import { sendMail } from '$lib/server/email/mailer';
 import { enrollmentConfirmEmail, refundConfirmEmail } from '$lib/server/email/templates';
 import { fireAutomations } from '$lib/server/automations';
 import { createInvoiceFromCheckout, createInvoiceFromSubscriptionPayment, voidInvoicesForPurchase } from '$lib/server/invoices';
+import { auth } from '$lib/server/auth';
 
 export const POST: RequestHandler = async ({ request }) => {
     const signature = request.headers.get('stripe-signature');
@@ -62,6 +63,15 @@ export const POST: RequestHandler = async ({ request }) => {
                             emailVerified: false, role: 'student',
                             createdAt: new Date(), updatedAt: new Date(),
                         });
+                        // Send password-setup email so the new user can log in
+                        try {
+                            await auth.api.forgetPassword({
+                                body: { email, redirectTo: '/dashboard' },
+                                headers: new Headers({ 'content-type': 'application/json' }),
+                            });
+                        } catch (emailErr) {
+                            console.error('Failed to send password setup email:', emailErr);
+                        }
                     }
                 } catch (err) {
                     console.error('Error handling guest user creation:', err);

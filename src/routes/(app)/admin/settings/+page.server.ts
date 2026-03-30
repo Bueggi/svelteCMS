@@ -104,6 +104,12 @@ export const actions: Actions = {
 		const accentColor = data.get('accentColor') as string;
 		const backgroundColor = data.get('backgroundColor') as string;
 		const foregroundColor = data.get('foregroundColor') as string;
+		const registrationEnabled = data.get('registrationEnabled') === 'true';
+		const siteUrl = (data.get('siteUrl') as string)?.trim() || null;
+		const checkoutButtonColor = (data.get('checkoutButtonColor') as string)?.trim() || null;
+		const checkoutLegalTextsRaw = (data.get('checkoutLegalTextsRaw') as string) || '';
+		const checkoutLegalTextsArr = checkoutLegalTextsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+		const checkoutLegalTexts = checkoutLegalTextsArr.length > 0 ? JSON.stringify(checkoutLegalTextsArr) : null;
 
 		try {
 			await db
@@ -123,6 +129,10 @@ export const actions: Actions = {
 					accentColor,
 					backgroundColor,
 					foregroundColor,
+					registrationEnabled,
+					siteUrl,
+					checkoutButtonColor,
+					checkoutLegalTexts,
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
@@ -141,6 +151,10 @@ export const actions: Actions = {
 						accentColor,
 						backgroundColor,
 						foregroundColor,
+						registrationEnabled,
+						siteUrl,
+						checkoutButtonColor,
+						checkoutLegalTexts,
 						updatedAt: new Date(),
 					},
 				});

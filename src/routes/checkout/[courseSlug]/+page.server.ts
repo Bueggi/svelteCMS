@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { courses, upsells, enrollments } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
-import { getEnabledPaymentMethods, getPayPalConfig, getVatConfig, getTaxRates } from '$lib/server/settings';
+import { getEnabledPaymentMethods, getPayPalConfig, getVatConfig, getTaxRates, getSettings } from '$lib/server/settings';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -40,12 +40,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         orderBy: [asc(upsells.order)]
     });
 
-    const [enabledMethods, paypalConfig, vatConfig, allTaxRates] = await Promise.all([
+    const [enabledMethods, paypalConfig, vatConfig, allTaxRates, settings] = await Promise.all([
         getEnabledPaymentMethods(),
         getPayPalConfig(),
         getVatConfig(),
         getTaxRates(),
+        getSettings(),
     ]);
+
+    let checkoutLegalTexts: string[] = [];
+    try {
+        checkoutLegalTexts = settings?.checkoutLegalTexts ? JSON.parse(settings.checkoutLegalTexts) : [];
+    } catch { checkoutLegalTexts = []; }
 
     return {
         course,
@@ -57,5 +63,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         reverseChargeEnabled: vatConfig.reverseChargeEnabled,
         operatorCountry: vatConfig.companyCountry,
         taxRates: allTaxRates,
+        checkoutButtonColor: settings?.checkoutButtonColor ?? null,
+        checkoutLegalTexts,
     };
 };

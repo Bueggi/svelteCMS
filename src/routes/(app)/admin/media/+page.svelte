@@ -60,16 +60,29 @@
         if (!fileList?.length) return;
         uploading = true;
         let uploaded = 0;
+        let failed = 0;
         try {
             for (const file of Array.from(fileList)) {
                 const fd = new FormData();
                 fd.append('file', file);
                 const res = await fetch('/api/upload', { method: 'POST', body: fd });
-                if (res.ok) uploaded++;
+                if (res.ok) {
+                    uploaded++;
+                } else {
+                    failed++;
+                    const errData = await res.json().catch(() => ({}));
+                    console.error('Upload error:', res.status, errData);
+                }
             }
-            toast.success(`${uploaded} Datei${uploaded !== 1 ? 'en' : ''} hochgeladen`);
-            await loadFiles(true);
-        } catch {
+            if (uploaded > 0) {
+                toast.success(`${uploaded} Datei${uploaded !== 1 ? 'en' : ''} hochgeladen`);
+                await loadFiles(true);
+            }
+            if (failed > 0) {
+                toast.error(`${failed} Datei${failed !== 1 ? 'en' : ''} konnten nicht hochgeladen werden. Prüfe die Konsole für Details.`);
+            }
+        } catch (err) {
+            console.error('Upload exception:', err);
             toast.error('Upload fehlgeschlagen');
         } finally {
             uploading = false;

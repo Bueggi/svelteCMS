@@ -1,13 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import { getStripeClient } from '$lib/server/stripe';
-import { getStripeKey, getStripeTestKey, getEnabledPaymentMethods, getVatConfig, getTaxRateForCountry } from '$lib/server/settings';
+import { getStripeKey, getStripeTestKey, getEnabledPaymentMethods, getVatConfig, getTaxRateForCountry, getSettings } from '$lib/server/settings';
 import { db } from '$lib/server/db';
 import { courses, coupons, upsells, funnels, funnelBumps } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/public';
-
-const PUBLIC_BASE_URL = env.PUBLIC_BASE_URL || 'http://localhost:5173';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     const body = await request.json() as {
@@ -38,12 +36,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     const billingCountry = billingAddress?.country?.toUpperCase();
 
-    const [stripeKey, stripeTestKey, vatConfig, countrySpecificRate] = await Promise.all([
+    const [stripeKey, stripeTestKey, vatConfig, countrySpecificRate, siteSettings] = await Promise.all([
         getStripeKey(),
         getStripeTestKey(),
         getVatConfig(),
         billingCountry ? getTaxRateForCountry(billingCountry) : Promise.resolve(null),
+        getSettings(),
     ]);
+
+    const PUBLIC_BASE_URL = siteSettings?.siteUrl || env.PUBLIC_BASE_URL || 'http://localhost:5173';
 
     const activeKey = sandboxMode ? stripeTestKey : stripeKey;
     if (!activeKey) return error(500, sandboxMode ? 'Stripe Test Key ist nicht konfiguriert. Bitte unter Einstellungen → Integrationen hinterlegen.' : 'Stripe is not configured');

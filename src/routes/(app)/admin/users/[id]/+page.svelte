@@ -20,6 +20,7 @@
 
     let isSaving = $state(false);
     let isRefunding = $state<string | null>(null);
+    let showDeleteConfirm = $state(false);
 
     // Form enhancement with toast/notification simulation and state consistency
     function enhanceProfileUpdate() {
@@ -48,10 +49,24 @@
                 <span>Joined {new Date(profile.createdAt).toLocaleDateString()}</span>
             </div>
         </div>
-        <div class="ml-auto">
-             <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'}>
+        <div class="ml-auto flex items-center gap-3">
+            <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'}>
                 {profile.role}
             </Badge>
+            {#if !showDeleteConfirm}
+                <Button variant="destructive" size="sm" onclick={() => showDeleteConfirm = true}>
+                    <Trash2 class="w-4 h-4 mr-1" />
+                    Löschen
+                </Button>
+            {:else}
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-destructive font-medium">Wirklich löschen?</span>
+                    <form method="POST" action="?/deleteUser" use:enhance>
+                        <Button type="submit" variant="destructive" size="sm">Ja, löschen</Button>
+                    </form>
+                    <Button variant="ghost" size="sm" onclick={() => showDeleteConfirm = false}>Abbrechen</Button>
+                </div>
+            {/if}
         </div>
     </div>
 

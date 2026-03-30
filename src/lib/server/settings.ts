@@ -11,8 +11,13 @@ const TTL = 30_000;
 
 export async function getSettings(): Promise<Settings | null> {
 	if (cache && Date.now() - cacheAt < TTL) return cache;
-	cache = (await db.query.siteSettings.findFirst({ where: eq(siteSettings.id, 1) })) ?? null;
-	cacheAt = Date.now();
+	try {
+		cache = (await db.query.siteSettings.findFirst({ where: eq(siteSettings.id, 1) })) ?? null;
+		cacheAt = Date.now();
+	} catch (err) {
+		console.error('[settings] DB query failed — schema may be out of sync:', err);
+		cache = null;
+	}
 	return cache;
 }
 

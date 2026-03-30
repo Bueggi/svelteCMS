@@ -44,11 +44,12 @@
   function handleFinalize(e: CustomEvent<DndEvent<Block>>) { items = e.detail.items; }
   function toggleOpen(id: string) { openId = openId === id ? null : id; }
 
-  function addBlock(type: BlockType) {
+  async function addBlock(type: BlockType) {
     const block = createBlock(type);
     items = [...items, block];
     openId = block.id;
     showPicker = false;
+    await save();
   }
 
   function removeBlock(id: string) {

@@ -42,7 +42,9 @@
       "Bash(grep -r ^s*//s* /c/Users/chris/Documents/Development/sveltecCourses/src --include=*.ts --include=*.js --include=*.svelte)",
       "Bash(ssh-keygen:*)",
       "Bash(openssl rand:*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(ls -la /c/Users/chris/Documents/Development/sveltecCourses/src/routes/\\\\\\(site\\\\\\)/\\\\\\(auth\\\\\\)/register/)",
+      "Bash(ls -la /c/Users/chris/Documents/Development/sveltecCourses/src/routes/\\\\\\(site\\\\\\)/\\\\\\(auth\\\\\\)/login/)"
     ]
   }
 }

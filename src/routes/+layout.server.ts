@@ -8,7 +8,13 @@ export const load = async ({ request }) => {
     });
 
     // Attempt to get site settings, or use defaults
-    const settings = await db.query.siteSettings.findFirst();
+    // Wrapped in try/catch to prevent full app crash if DB schema is out of sync
+    let settings = null;
+    try {
+        settings = await db.query.siteSettings.findFirst();
+    } catch {
+        // Schema might be temporarily out of sync (e.g. pending migration)
+    }
 
     return {
         user: session?.user || null,

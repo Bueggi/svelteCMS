@@ -897,6 +897,74 @@
                                     </FormSelect>
                                     <p class="text-xs text-muted-foreground">{getT('settingsLanguageDesc')}</p>
                                 </div>
+
+                                <div class="flex items-center justify-between rounded-lg border border-white/10 p-4">
+                                    <div>
+                                        <p class="font-medium text-sm">Registrierung erlauben</p>
+                                        <p class="text-xs text-muted-foreground">Wenn deaktiviert, können sich neue User nicht selbst registrieren. Accounts werden nur über Käufe erstellt.</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer ml-4">
+                                        <input
+                                            type="checkbox"
+                                            name="registrationEnabled"
+                                            value="true"
+                                            checked={settings?.registrationEnabled !== false}
+                                            class="sr-only peer"
+                                        />
+                                        <div class="w-11 h-6 bg-muted peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                    </label>
+                                </div>
+
+                                <!-- Site URL -->
+                                <div class="border-t border-white/10 pt-6 space-y-4">
+                                    <div>
+                                        <h3 class="text-base font-semibold">Checkout</h3>
+                                        <p class="text-sm text-muted-foreground">Basis-URL der Website und Checkout-Anpassungen.</p>
+                                    </div>
+
+                                    <div class="grid gap-2">
+                                        <Label for="siteUrl">Website-URL</Label>
+                                        <Input id="siteUrl" name="siteUrl" value={settings?.siteUrl || ''} placeholder="https://deineshop.de" class="bg-background/50" />
+                                        <p class="text-xs text-muted-foreground">Wird für Stripe Erfolgs-/Abbruch-URLs verwendet. Muss ohne abschließenden Schrägstrich angegeben werden.</p>
+                                    </div>
+
+                                    <div class="grid gap-2">
+                                        <Label for="checkoutButtonColor">Bezahlen-Button Farbe</Label>
+                                        <div class="flex items-center gap-3">
+                                            <input
+                                                type="color"
+                                                id="checkoutButtonColor"
+                                                name="checkoutButtonColor"
+                                                value={settings?.checkoutButtonColor || '#000000'}
+                                                class="w-10 h-10 rounded cursor-pointer border border-border bg-transparent p-0.5"
+                                            />
+                                            <Input
+                                                value={settings?.checkoutButtonColor || ''}
+                                                placeholder="#e86a3a (leer = Standard)"
+                                                class="bg-background/50 font-mono flex-1"
+                                                oninput={(e) => {
+                                                    const colorInput = document.getElementById('checkoutButtonColor') as HTMLInputElement;
+                                                    if (colorInput) colorInput.value = (e.target as HTMLInputElement).value;
+                                                }}
+                                                readonly
+                                            />
+                                        </div>
+                                        <p class="text-xs text-muted-foreground">Leer lassen = Standard-Primärfarbe wird verwendet.</p>
+                                    </div>
+
+                                    <div class="grid gap-2">
+                                        <Label for="checkoutLegalTexts">Pflicht-Checkboxen im Checkout</Label>
+                                        <textarea
+                                            id="checkoutLegalTexts"
+                                            name="checkoutLegalTextsRaw"
+                                            rows={4}
+                                            value={(() => { try { return (JSON.parse(settings?.checkoutLegalTexts || '[]') as string[]).join('\n'); } catch { return ''; } })()}
+                                            placeholder={"Ich bestätige, dass die digitale Leistung sofort erbracht wird und verzichte auf mein Widerrufsrecht.\nIch habe die Datenschutzerklärung gelesen und akzeptiere diese."}
+                                            class="w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring"
+                                        ></textarea>
+                                        <p class="text-xs text-muted-foreground">Eine Checkbox pro Zeile. Alle Felder müssen vom Käufer bestätigt werden, bevor die Zahlung möglich ist.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         

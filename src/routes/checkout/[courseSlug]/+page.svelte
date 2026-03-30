@@ -13,6 +13,15 @@
     let course = $derived(data.course);
     let upsells = $derived(data.upsells);
     let user = $derived(data.user);
+    let checkoutButtonColor = $derived(data.checkoutButtonColor as string | null);
+    let checkoutLegalTexts = $derived(data.checkoutLegalTexts as string[]);
+
+    // Legal checkbox state — one boolean per item
+    let legalChecked = $state<boolean[]>([]);
+    $effect(() => {
+        legalChecked = (checkoutLegalTexts ?? []).map(() => false);
+    });
+    let allLegalChecked = $derived(legalChecked.every(v => v));
     let defaultVatRate = $derived(data.vatRate ?? 0);
     let reverseChargeEnabled = $derived(data.reverseChargeEnabled ?? false);
     let operatorCountry = $derived(data.operatorCountry ?? 'DE');
@@ -267,9 +276,9 @@
             <h1 class="text-3xl font-serif font-bold tracking-tight">Bestellung abschließen</h1>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_minmax(340px,420px)] gap-8">
             <!-- Left: Order Summary + Upsells -->
-            <div class="lg:col-span-3 space-y-6">
+            <div class="space-y-6">
                 <!-- Main Course -->
                 <div class="bg-card border rounded-xl p-6 space-y-4">
                     <h2 class="text-sm font-medium text-muted-foreground uppercase tracking-wide">Deine Bestellung</h2>
@@ -414,7 +423,7 @@
             </div>
 
             <!-- Right: Payment -->
-            <div class="lg:col-span-2">
+            <div>
                 <div class="bg-card border rounded-xl p-6 space-y-5 sticky top-8">
                     <!-- Order total with tax breakdown -->
                     <div class="space-y-2 text-sm border-b pb-4">
@@ -529,11 +538,28 @@
                             {/if}
                         </div>
 
+                        <!-- Legal checkboxes -->
+                        {#if checkoutLegalTexts.length > 0}
+                            <div class="space-y-2">
+                                {#each checkoutLegalTexts as text, i}
+                                    <label class="flex items-start gap-2.5 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            bind:checked={legalChecked[i]}
+                                            class="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
+                                        />
+                                        <span class="text-xs text-muted-foreground leading-relaxed">{text}</span>
+                                    </label>
+                                {/each}
+                            </div>
+                        {/if}
+
                         <Button
                             class="w-full"
                             size="lg"
                             onclick={handleCheckout}
-                            disabled={isLoading}
+                            disabled={isLoading || !allLegalChecked}
+                            style={checkoutButtonColor ? `background-color: ${checkoutButtonColor}; border-color: ${checkoutButtonColor};` : ''}
                         >
                             {#if isLoading}
                                 Wird verarbeitet...

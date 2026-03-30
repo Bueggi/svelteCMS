@@ -184,16 +184,32 @@ export const actions: Actions = {
             await db.update(purchases)
                 .set({ status: 'refunded' })
                 .where(eq(purchases.id, purchaseId));
-            
-            // Optional: Remove enrollment if refunded? 
-            // For now, let's keep it manual or logic based on business rule. 
-            // Often refunds shouldn't auto-remove access if it was a partial refund or goodwill, 
-            // but for full refunds usually yes. Use caution.
-            
+
             return { success: true, message: 'Purchase marked as refunded' };
         } catch (error) {
             console.error('Refund error:', error);
             return fail(500, { message: 'Failed to refund purchase' });
         }
+    },
+
+    deleteUser: async ({ params, locals }) => {
+        if (!locals.user) return fail(401);
+        const targetId = params.id;
+
+        // Prevent self-deletion
+        if (locals.user.id === targetId) return fail(400, { message: 'Cannot delete your own account' });
+
+        try {
+            // Delete dependent records first
+            await db.delete(enrollments).where(eq(enrollments.userId, targetId));
+            await db.delete(purchases).where(eq(purchases.userId, targetId));
+            await db.delete(communityPosts).where(eq(communityPosts.authorId, targetId));
+            await db.delete(user).where(eq(user.id, targetId));
+        } catch (error) {
+            console.error('Delete user error:', error);
+            return fail(500, { message: 'Failed to delete user' });
+        }
+
+        throw redirect(302, '/admin/users');
     }
 };

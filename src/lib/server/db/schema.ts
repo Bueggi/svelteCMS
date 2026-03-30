@@ -93,6 +93,16 @@ export const siteSettings = pgTable('site_settings', {
 	invoiceNextNumber: integer('invoice_next_number').notNull().default(1),
 	invoiceTemplate: text('invoice_template'),   // Custom HTML template (null = use default)
 	invoiceFooter: text('invoice_footer'),        // Legal footer text
+
+	// Access control
+	registrationEnabled: boolean('registration_enabled').notNull().default(true),
+
+	// Site URL (used for Stripe success/cancel redirect URLs)
+	siteUrl: text('site_url'),
+
+	// Checkout customization
+	checkoutButtonColor: text('checkout_button_color'),  // hex, e.g. #e86a3a
+	checkoutLegalTexts: text('checkout_legal_texts'),    // JSON: string[] — one required checkbox per item
 });
 
 /**

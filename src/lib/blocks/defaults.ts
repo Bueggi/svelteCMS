@@ -1,12 +1,13 @@
 import type { Block, BlockType } from './types';
+import { generateId } from '$lib/utils/uuid';
 
 export function createBlock(type: BlockType): Block {
-  const id = crypto.randomUUID();
+  const id = generateId();
   switch (type) {
     case 'hero': return { id, type, variant: 'centered', headline: 'Deine Headline hier', subheadline: 'Ein überzeugender Untertitel', ctaText: 'Jetzt anmelden' };
-    case 'features': return { id, type, variant: 'grid', title: 'Was du lernen wirst', items: [{ id: crypto.randomUUID(), icon: '✨', title: 'Feature', description: 'Kurze Beschreibung' }] };
-    case 'testimonials': return { id, type, variant: 'cards', title: 'Das sagen Teilnehmerinnen', items: [{ id: crypto.randomUUID(), name: 'Maria M.', role: 'Kundin', text: 'Absolut empfehlenswert!', rating: 5 }] };
-    case 'faq': return { id, type, variant: 'accordion', title: 'Häufige Fragen', items: [{ id: crypto.randomUUID(), question: 'Wie lange habe ich Zugang?', answer: 'Du erhältst lebenslangen Zugang zu allen Materialien.' }] };
+    case 'features': return { id, type, variant: 'grid', title: 'Was du lernen wirst', items: [{ id: generateId(), icon: '✨', title: 'Feature', description: 'Kurze Beschreibung' }] };
+    case 'testimonials': return { id, type, variant: 'cards', title: 'Das sagen Teilnehmerinnen', items: [{ id: generateId(), name: 'Maria M.', role: 'Kundin', text: 'Absolut empfehlenswert!', rating: 5 }] };
+    case 'faq': return { id, type, variant: 'accordion', title: 'Häufige Fragen', items: [{ id: generateId(), question: 'Wie lange habe ich Zugang?', answer: 'Du erhältst lebenslangen Zugang zu allen Materialien.' }] };
     case 'richtext': return { id, type, variant: 'default', content: '<p>Dein Text hier...</p>' };
     case 'cta': return { id, type, variant: 'centered', headline: 'Bereit für den nächsten Schritt?', subtext: 'Tritt noch heute bei', buttonText: 'Jetzt kaufen', guaranteeText: '30 Tage Geld-zurück-Garantie' };
     case 'instructor': return { id, type, variant: 'horizontal', name: 'Dein Name', bio: 'Kurze Biografie...', credentials: ['Zertifizierung 1', 'Zertifizierung 2'] };

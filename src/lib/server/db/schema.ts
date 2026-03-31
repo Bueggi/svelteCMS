@@ -135,6 +135,7 @@ export const user = pgTable('user', {
 	role: userRoleEnum('role').notNull().default('student'),
 	language: languageEnum('language').notNull().default('de'),
 	stripeCustomerId: text('stripe_customer_id').unique(),
+	phone: text('phone'),
 });
 
 export const session = pgTable('session', {

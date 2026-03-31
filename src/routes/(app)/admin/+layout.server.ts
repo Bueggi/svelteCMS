@@ -54,6 +54,8 @@ async function getUpdateInfo(): Promise<{ version: string; summary: string } | n
 
 // ──────────────────────────────────────────────────────────────────────────────
 
+declare const __GIT_COMMIT__: string;
+
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const user = locals.user;
 
@@ -61,6 +63,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	if (user.role !== 'admin' && user.role !== 'instructor') throw redirect(302, '/dashboard');
 
 	const updateInfo = await getUpdateInfo();
+	const gitCommit = typeof __GIT_COMMIT__ !== 'undefined' ? __GIT_COMMIT__ : 'unknown';
 
-	return { user, updateInfo };
+	return { user, updateInfo, gitCommit };
 };

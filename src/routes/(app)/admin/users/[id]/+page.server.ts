@@ -1,55 +1,62 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { user, enrollments, communityPosts, courses, purchases } from '$lib/server/db/schema';
+import { user, enrollments, communityPosts, courses, purchases, invoices } from '$lib/server/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import type { PageServerLoad, Actions } from './$types';
 import { sendMail } from '$lib/server/email/mailer';
 import { enrollmentRevokedEmail } from '$lib/server/email/templates';
+import { auth } from '$lib/server/auth';
+import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     if (!locals.user) throw redirect(302, '/login');
 
     const userId = params.id;
 
-    // Fetch user details
     const userProfile = await db.query.user.findFirst({
         where: eq(user.id, userId),
     });
 
     if (!userProfile) throw redirect(302, '/admin/users');
 
-    // Fetch Enrollments (and available courses to add)
     const userEnrollments = await db.query.enrollments.findMany({
         where: eq(enrollments.userId, userId),
-        with: {
-            course: true
-        }
+        with: { course: true }
     });
 
     const allCourses = await db.query.courses.findMany({
         columns: { id: true, title: true }
     });
 
-    // Determine available courses (not enrolled)
     const enrolledCourseIds = new Set(userEnrollments.map(e => e.courseId));
     const availableCourses = allCourses.filter(c => !enrolledCourseIds.has(c.id));
 
-    // Fetch Recent Activity (Posts)
     const recentActivity = await db.query.communityPosts.findMany({
         where: eq(communityPosts.authorId, userId),
         orderBy: [desc(communityPosts.createdAt)],
         limit: 5,
-        with: {
-            category: true
-        }
+        with: { category: true }
     });
 
-    // Fetch Purchase History
     const userPurchases = await db.query.purchases.findMany({
         where: eq(purchases.userId, userId),
         orderBy: [desc(purchases.createdAt)],
-        with: {
-            course: true
+        with: { course: true }
+    });
+
+    // Billing addresses from invoices
+    const userInvoices = await db.query.invoices.findMany({
+        where: eq(invoices.userId, userId),
+        orderBy: [desc(invoices.createdAt)],
+        columns: {
+            id: true,
+            invoiceNumber: true,
+            customerName: true,
+            customerEmail: true,
+            customerAddressJson: true,
+            customerVatId: true,
+            invoiceDate: true,
+            totalCents: true,
         }
     });
 
@@ -58,7 +65,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         enrollments: userEnrollments,
         availableCourses,
         recentActivity,
-        purchases: userPurchases
+        purchases: userPurchases,
+        invoices: userInvoices,
     };
 };
 
@@ -69,16 +77,40 @@ export const actions: Actions = {
         const name = data.get('name') as string;
         const email = data.get('email') as string;
         const role = data.get('role') as 'student' | 'admin' | 'instructor';
+        const phone = (data.get('phone') as string) || null;
 
         try {
             await db.update(user)
-                .set({ name, email, role, updatedAt: new Date() })
+                .set({ name, email, role, phone, updatedAt: new Date() })
                 .where(eq(user.id, params.id));
-            
-            return { success: true, message: 'Profile updated successfully' };
+            return { success: true, message: 'Profil aktualisiert' };
         } catch (error) {
             console.error('Update profile error:', error);
-            return fail(500, { message: 'Failed to update profile' });
+            return fail(500, { message: 'Fehler beim Speichern' });
+        }
+    },
+
+    sendPasswordReset: async ({ params, locals }) => {
+        if (!locals.user) return fail(401);
+
+        const targetUser = await db.query.user.findFirst({
+            where: eq(user.id, params.id),
+            columns: { email: true, name: true }
+        });
+        if (!targetUser) return fail(404, { message: 'Benutzer nicht gefunden' });
+
+        try {
+            const baseUrl = env.BETTER_AUTH_URL || 'http://localhost:5173';
+            await auth.api.requestPasswordReset({
+                body: {
+                    email: targetUser.email,
+                    redirectTo: `${baseUrl}/reset-password`,
+                },
+            });
+            return { success: true, action: 'passwordReset', message: `Passwort-Reset-E-Mail an ${targetUser.email} gesendet` };
+        } catch (error) {
+            console.error('Password reset error:', error);
+            return fail(500, { message: 'E-Mail konnte nicht gesendet werden' });
         }
     },
 
@@ -90,14 +122,12 @@ export const actions: Actions = {
         if (!courseId) return fail(400, { message: 'Missing course ID' });
 
         try {
-            // Fetch course to check access settings
             const course = await db.query.courses.findFirst({
                 where: eq(courses.id, courseId),
                 columns: { accessType: true, accessDuration: true }
             });
 
             let expiresAt: Date | null = null;
-            
             if (course && (course.accessType === 'duration' || course.accessType === 'subscription') && course.accessDuration) {
                 expiresAt = new Date();
                 expiresAt.setDate(expiresAt.getDate() + course.accessDuration);
@@ -158,10 +188,7 @@ export const actions: Actions = {
 
         try {
             await db.update(enrollments)
-                .set({ 
-                    status, 
-                    expiresAt: expiresAtStr ? new Date(expiresAtStr) : null 
-                })
+                .set({ status, expiresAt: expiresAtStr ? new Date(expiresAtStr) : null })
                 .where(and(
                     eq(enrollments.userId, params.id),
                     eq(enrollments.courseId, courseId)
@@ -184,7 +211,6 @@ export const actions: Actions = {
             await db.update(purchases)
                 .set({ status: 'refunded' })
                 .where(eq(purchases.id, purchaseId));
-
             return { success: true, message: 'Purchase marked as refunded' };
         } catch (error) {
             console.error('Refund error:', error);
@@ -196,11 +222,9 @@ export const actions: Actions = {
         if (!locals.user) return fail(401);
         const targetId = params.id;
 
-        // Prevent self-deletion
         if (locals.user.id === targetId) return fail(400, { message: 'Cannot delete your own account' });
 
         try {
-            // Delete dependent records first
             await db.delete(enrollments).where(eq(enrollments.userId, targetId));
             await db.delete(purchases).where(eq(purchases.userId, targetId));
             await db.delete(communityPosts).where(eq(communityPosts.authorId, targetId));

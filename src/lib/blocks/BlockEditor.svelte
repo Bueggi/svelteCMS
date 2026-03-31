@@ -5,6 +5,7 @@
   import type { Block, BlockType } from './types';
   import { ALL_BLOCK_TYPES } from './types';
   import { createBlock, BLOCK_LABELS, BLOCK_VARIANTS } from './defaults';
+  import { generateId } from '$lib/utils/uuid';
   import { toast } from 'svelte-sonner';
 
   const inp = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors';
@@ -81,7 +82,7 @@
 
   function addItem(arrayKey: string, template: any) {
     const block = items.find(b => b.id === openId) as any;
-    update(arrayKey, [...(block[arrayKey] ?? []), { id: crypto.randomUUID(), ...template }]);
+    update(arrayKey, [...(block[arrayKey] ?? []), { id: generateId(), ...template }]);
   }
 
   function removeItem(arrayKey: string, index: number) {

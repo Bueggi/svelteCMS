@@ -30,3 +30,11 @@
 <div class="max-w-7xl mx-auto animate-in fade-in duration-500">
     {@render children()}
 </div>
+
+<!-- Version badge (fixed bottom-right) -->
+<span
+    class="fixed bottom-3 right-3 z-50 font-mono text-[10px] text-muted-foreground/50 bg-background/80 backdrop-blur-sm border border-border/30 rounded px-1.5 py-0.5 select-none cursor-default"
+    title="Deployed commit hash"
+>
+    {data.gitCommit}
+</span>

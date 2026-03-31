@@ -80,15 +80,24 @@
             fd.append('file', file);
             const uploadUrl = cropRatio ? `/api/upload?crop=${encodeURIComponent(cropRatio)}` : '/api/upload';
             const res = await fetch(uploadUrl, { method: 'POST', body: fd });
-            if (!res.ok) throw new Error('Upload fehlgeschlagen');
+            if (!res.ok) {
+                let reason = `HTTP ${res.status}`;
+                if (res.status === 413) {
+                    reason = 'Datei zu groß für den Server (max. 20 MB). Bitte in einem externen Tool verkleinern.';
+                } else {
+                    try { const body = await res.json(); reason = body.message ?? body.error ?? reason; } catch {}
+                }
+                alert(`Upload fehlgeschlagen: ${reason}`);
+                return;
+            }
             const data = await res.json();
             value = data.url;
-        } catch {
-            alert('Upload fehlgeschlagen.');
+        } catch (err: any) {
+            alert(`Upload fehlgeschlagen: ${err?.message ?? 'Netzwerkfehler'}`);
         } finally {
             uploading = false;
+            (e.target as HTMLInputElement).value = '';
         }
-        (e.target as HTMLInputElement).value = '';
     }
 </script>
 

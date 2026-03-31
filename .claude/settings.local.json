@@ -44,7 +44,11 @@
       "Bash(openssl rand:*)",
       "Bash(xargs grep:*)",
       "Bash(ls -la /c/Users/chris/Documents/Development/sveltecCourses/src/routes/\\\\\\(site\\\\\\)/\\\\\\(auth\\\\\\)/register/)",
-      "Bash(ls -la /c/Users/chris/Documents/Development/sveltecCourses/src/routes/\\\\\\(site\\\\\\)/\\\\\\(auth\\\\\\)/login/)"
+      "Bash(ls -la /c/Users/chris/Documents/Development/sveltecCourses/src/routes/\\\\\\(site\\\\\\)/\\\\\\(auth\\\\\\)/login/)",
+      "Bash(grep -r \"forgetPassword\\\\|resetPassword\\\\|forget-password\" node_modules/better-auth/dist --include=*.d.ts -l)",
+      "Bash(grep -r \"forgetPassword\\\\|forget-password\\\\|requestPasswordReset\" c:UserschrisDocumentsDevelopmentsveltecCoursesnode_modulesbetter-authdist --include=*.d.ts -l)",
+      "Bash(grep -r \"forgetPassword\\\\|forget_password\" c:UserschrisDocumentsDevelopmentsveltecCoursesnode_modulesbetter-auth --include=*.js -l)",
+      "Bash(grep -r \"forgetPassword\\\\|forget-password\" /c/Users/chris/Documents/Development/sveltecCourses/node_modules/better-auth/dist/api/ --include=*.js -l)"
     ]
   }
 }

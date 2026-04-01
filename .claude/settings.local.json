@@ -48,7 +48,10 @@
       "Bash(grep -r \"forgetPassword\\\\|resetPassword\\\\|forget-password\" node_modules/better-auth/dist --include=*.d.ts -l)",
       "Bash(grep -r \"forgetPassword\\\\|forget-password\\\\|requestPasswordReset\" c:UserschrisDocumentsDevelopmentsveltecCoursesnode_modulesbetter-authdist --include=*.d.ts -l)",
       "Bash(grep -r \"forgetPassword\\\\|forget_password\" c:UserschrisDocumentsDevelopmentsveltecCoursesnode_modulesbetter-auth --include=*.js -l)",
-      "Bash(grep -r \"forgetPassword\\\\|forget-password\" /c/Users/chris/Documents/Development/sveltecCourses/node_modules/better-auth/dist/api/ --include=*.js -l)"
+      "Bash(grep -r \"forgetPassword\\\\|forget-password\" /c/Users/chris/Documents/Development/sveltecCourses/node_modules/better-auth/dist/api/ --include=*.js -l)",
+      "mcp__Claude_Preview__preview_start",
+      "WebSearch",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

@@ -92,6 +92,9 @@
             }
             const data = await res.json();
             value = data.url;
+            if (data.thumbnailsGenerated === false) {
+                alert('Bild hochgeladen, aber Thumbnails konnten nicht erstellt werden. Bitte "npm rebuild sharp" auf dem Server ausführen.');
+            }
         } catch (err: any) {
             alert(`Upload fehlgeschlagen: ${err?.message ?? 'Netzwerkfehler'}`);
         } finally {

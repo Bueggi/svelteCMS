@@ -68,6 +68,10 @@
                 const res = await fetch('/api/upload', { method: 'POST', body: fd });
                 if (res.ok) {
                     uploaded++;
+                    const body = await res.json().catch(() => ({}));
+                    if (body.thumbnailsGenerated === false) {
+                        toast.warning(`${file.name}: Bild gespeichert, aber Thumbnails konnten nicht erstellt werden (Sharp-Fehler auf dem Server). Bitte "npm rebuild sharp" auf dem Server ausführen.`, { duration: 10000 });
+                    }
                 } else {
                     let reason = `HTTP ${res.status}`;
                     try {

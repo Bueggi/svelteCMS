@@ -136,10 +136,14 @@ export const POST: RequestHandler = async ({ request, locals, url: reqUrl }) => 
 			height = fullMeta.height ?? height;
 		} catch (sharpErr) {
 			// Sharp failed (e.g. native binary missing on ARM64) — save original as-is
-			console.warn('[upload] sharp failed, saving original:', sharpErr instanceof Error ? sharpErr.message : sharpErr);
+			const sharpMsg = sharpErr instanceof Error ? sharpErr.message : String(sharpErr);
+			console.error('[upload] sharp failed, saving original without thumbnails:', sharpMsg);
 			const ext = file.name.match(/\.[^.]+$/)?.[0] ?? '.bin';
 			finalExt = ext;
+			mimeType = file.type;
 			await writeFile(join(targetDir, `${base}${finalExt}`), rawBuffer);
+			// Signal to client that thumbnails weren't generated
+			// (url800/url400/blurDataUrl remain null)
 		}
 	} else {
 		// SVG / GIF / ICO — save unchanged
@@ -170,5 +174,12 @@ export const POST: RequestHandler = async ({ request, locals, url: reqUrl }) => 
 		// Non-fatal
 	}
 
-	return json({ url: fileUrl, url800, url400, blurDataUrl });
+	return json({
+		url: fileUrl,
+		url800,
+		url400,
+		blurDataUrl,
+		// thumbnailsGenerated: false means sharp failed — image is saved but has no thumbnails
+		thumbnailsGenerated: url400 !== null,
+	});
 };

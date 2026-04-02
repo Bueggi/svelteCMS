@@ -16,15 +16,18 @@
     } from "$lib/components/ui/dropdown-menu";
     import { MessageSquare, ThumbsUp, Plus, MoreVertical, ArrowRight, Hash, X, Pencil, Trash2, Send, ChevronRight } from "lucide-svelte";
     import { page } from '$app/stores';
+    import { getContext } from "svelte";
+    import { getT, type LangKey } from "$lib/i18n";
 
     let { data } = $props();
     let categories = $derived(data.categories);
     let course = $derived(data.communityCourse);
 
+    const langCtx = getContext<{ lang: LangKey }>('i18n');
+    const t = $derived(getT(langCtx.lang));
+
     // Local post list — initialised from server data, then mutated client-side.
-    // Use $state.raw so that replacing the whole array always triggers reactivity.
     let localPosts = $state<any[]>([...(data.posts as any[])]);
-    // Only reset when the server-side data actually changes (e.g. new post created via form).
     let _prevPostsRef = data.posts;
     $effect(() => {
         if (data.posts !== _prevPostsRef) {
@@ -118,7 +121,7 @@
     }
 
     async function deletePost(postId: string) {
-        if (!confirm('Diskussion löschen?')) return;
+        if (!confirm(t('communityDeletePost'))) return;
         await callAction('deletePost', { postId });
         localPosts = localPosts.filter((p: any) => p.id !== postId);
         closeModal();
@@ -152,7 +155,7 @@
     }
 
     async function deleteComment(commentId: string) {
-        if (!confirm('Antwort löschen?')) return;
+        if (!confirm(t('communityDeleteReply'))) return;
         await callAction('deleteComment', { commentId });
         localPosts = localPosts.map((p: any) =>
             p.id === selectedPost?.id ? { ...p, commentCount: Math.max(0, (p.commentCount ?? 1) - 1) } : p
@@ -174,24 +177,24 @@
     <div>
         <h1 class="text-3xl font-serif font-semibold text-foreground">
             {$page.url.searchParams.get('category')
-                ? (categories.find((c: any) => c.id === $page.url.searchParams.get('category'))?.name ?? 'Discussions')
-                : 'Community Discussions'}
+                ? (categories.find((c: any) => c.id === $page.url.searchParams.get('category'))?.name ?? t('communityDiscussions'))
+                : t('communityTitle')}
         </h1>
-        <p class="text-muted-foreground text-sm mt-1">Connect, share, and learn with fellow students.</p>
+        <p class="text-muted-foreground text-sm mt-1">{t('communityDesc')}</p>
     </div>
 
     <Dialog bind:open={isNewPostOpen}>
         <DialogTrigger>
             {#snippet child({ props })}
                 <Button {...props} class="shrink-0 gap-2">
-                    <Plus class="w-4 h-4" /> New Discussion
+                    <Plus class="w-4 h-4" /> {t('communityNewPost')}
                 </Button>
             {/snippet}
         </DialogTrigger>
-        <DialogContent class="sm:max-w-[540px]">
+        <DialogContent class="sm:max-w-135">
             <DialogHeader>
-                <DialogTitle>Create a new post</DialogTitle>
-                <DialogDescription>Share your thoughts with the community.</DialogDescription>
+                <DialogTitle>{t('communityNewPostTitle')}</DialogTitle>
+                <DialogDescription>{t('communityNewPostDesc')}</DialogDescription>
             </DialogHeader>
             <form
                 action="?/createPost"
@@ -205,11 +208,11 @@
                 class="space-y-4 mt-2"
             >
                 <div class="space-y-1.5">
-                    <Label for="title">Title</Label>
-                    <Input id="title" name="title" placeholder="What's on your mind?" required />
+                    <Label for="title">{t('communityPostTitle')}</Label>
+                    <Input id="title" name="title" placeholder={t('communityPostTitlePh')} required />
                 </div>
                 <div class="space-y-1.5">
-                    <Label for="category">Channel</Label>
+                    <Label for="category">{t('communityPostChannel')}</Label>
                     <FormSelect id="category" name="categoryId" required>
                         {#each categories as category}
                             <option value={category.id}>{category.name}</option>
@@ -217,11 +220,11 @@
                     </FormSelect>
                 </div>
                 <div class="space-y-1.5">
-                    <Label for="body">Content</Label>
-                    <Textarea id="body" name="body" placeholder="Write your post details here..." rows={5} required class="resize-none" />
+                    <Label for="body">{t('communityPostContent')}</Label>
+                    <Textarea id="body" name="body" placeholder={t('communityPostContentPh')} rows={5} required class="resize-none" />
                 </div>
                 <DialogFooter>
-                    <Button type="submit" class="w-full sm:w-auto">Post Discussion</Button>
+                    <Button type="submit" class="w-full sm:w-auto">{t('communityPostSubmit')}</Button>
                 </DialogFooter>
             </form>
         </DialogContent>
@@ -234,8 +237,8 @@
         <div class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
             <MessageSquare class="w-8 h-8 text-primary" />
         </div>
-        <h3 class="text-lg font-semibold mb-2">No discussions yet</h3>
-        <p class="text-muted-foreground max-w-sm text-sm">Be the first to start a conversation!</p>
+        <h3 class="text-lg font-semibold mb-2">{t('communityNoDiscussions')}</h3>
+        <p class="text-muted-foreground max-w-sm text-sm">{t('communityNoDiscussionsDesc')}</p>
     </div>
 {:else}
     <div class="space-y-3">
@@ -245,7 +248,7 @@
                 class="group w-full text-left bg-card border border-border/60 rounded-2xl hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
             >
                 <div class="p-5 flex items-start gap-4">
-                    <div class="hidden sm:flex flex-col items-center gap-1 text-secondary-foreground bg-muted/50 border border-border/60 px-3 py-2.5 rounded-xl shrink-0 min-w-[3rem]">
+                    <div class="hidden sm:flex flex-col items-center gap-1 text-secondary-foreground bg-muted/50 border border-border/60 px-3 py-2.5 rounded-xl shrink-0 min-w-12">
                         <ThumbsUp class="w-4 h-4" />
                         <span class="text-xs font-bold">0</span>
                     </div>
@@ -256,7 +259,7 @@
                                 <Hash class="w-3 h-3" />{post.category.name}
                             </span>
                             <span class="flex items-center gap-1.5">
-                                <span class="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400 flex items-center justify-center text-[10px] text-white font-bold shrink-0">
+                                <span class="w-5 h-5 rounded-full bg-linear-to-tr from-blue-400 to-purple-400 flex items-center justify-center text-[10px] text-white font-bold shrink-0">
                                     {avatarText(post.author.name)}
                                 </span>
                                 {post.author.name}
@@ -272,10 +275,10 @@
                         <div class="flex items-center justify-between pt-2 border-t border-border/30 mt-1">
                             <span class="inline-flex items-center gap-1.5 text-xs text-secondary-foreground bg-muted/50 rounded-full px-3 py-1">
                                 <MessageSquare class="w-3.5 h-3.5" />
-                                {post.commentCount} Antworten
+                                {post.commentCount} {t('communityReplies')}
                             </span>
                             <span class="text-xs text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
-                                Öffnen <ChevronRight class="w-3.5 h-3.5" />
+                                {t('communityOpen')} <ChevronRight class="w-3.5 h-3.5" />
                             </span>
                         </div>
                     </div>
@@ -284,7 +287,7 @@
         {/each}
     </div>
 
-    <!-- Admin: move post dropdown (separate form, not inside the button) -->
+    <!-- Staff: move post forms (hidden) -->
     {#if isStaff}
         <div class="hidden">
             {#each localPosts as post (post.id)}
@@ -318,7 +321,7 @@
                     {:else}
                         <h2 class="font-serif font-semibold text-xl leading-snug">{selectedPost.title}</h2>
                         <div class="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <span class="w-4 h-4 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400 flex items-center justify-center text-[9px] text-white font-bold shrink-0">
+                            <span class="w-4 h-4 rounded-full bg-linear-to-tr from-blue-400 to-purple-400 flex items-center justify-center text-[9px] text-white font-bold shrink-0">
                                 {avatarText(selectedPost.author.name)}
                             </span>
                             {selectedPost.author.name} · {formatDate(selectedPost.createdAt)}
@@ -331,13 +334,13 @@
                 <div class="flex items-center gap-1 shrink-0">
                     {#if canEdit(selectedPost.authorId)}
                         {#if editingPost}
-                            <Button size="sm" onclick={saveEditPost} disabled={submitting}>Speichern</Button>
-                            <Button size="sm" variant="ghost" onclick={() => editingPost = false}>Abbrechen</Button>
+                            <Button size="sm" onclick={saveEditPost} disabled={submitting}>{t('save')}</Button>
+                            <Button size="sm" variant="ghost" onclick={() => editingPost = false}>{t('cancel')}</Button>
                         {:else}
-                            <button onclick={startEditPost} class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground" title="Bearbeiten">
+                            <button onclick={startEditPost} class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground" title={t('edit')}>
                                 <Pencil class="w-4 h-4" />
                             </button>
-                            <button onclick={() => deletePost(selectedPost.id)} class="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title="Löschen">
+                            <button onclick={() => deletePost(selectedPost.id)} class="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive" title={t('delete')}>
                                 <Trash2 class="w-4 h-4" />
                             </button>
                         {/if}
@@ -362,7 +365,7 @@
                 <!-- Comments section -->
                 <div class="px-5 py-4 space-y-4">
                     <h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        {#if commentsLoading}Lade Antworten...{:else}{modalComments.length} Antworten{/if}
+                        {#if commentsLoading}{t('communityLoadingReplies')}{:else}{modalComments.length} {t('communityReplies')}{/if}
                     </h3>
 
                     {#if commentsLoading}
@@ -378,11 +381,11 @@
                             {/each}
                         </div>
                     {:else if modalComments.length === 0}
-                        <p class="text-sm text-muted-foreground py-4 text-center">Noch keine Antworten. Sei der Erste!</p>
+                        <p class="text-sm text-muted-foreground py-4 text-center">{t('communityNoReplies')}</p>
                     {:else}
                         {#each modalComments as comment (comment.id)}
                             <div class="group/comment flex gap-3">
-                                <span class="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-400 flex items-center justify-center text-[10px] text-white font-bold shrink-0 mt-0.5">
+                                <span class="w-7 h-7 rounded-full bg-linear-to-tr from-emerald-400 to-cyan-400 flex items-center justify-center text-[10px] text-white font-bold shrink-0 mt-0.5">
                                     {avatarText(comment.author.name)}
                                 </span>
                                 <div class="flex-1 min-w-0">
@@ -394,8 +397,8 @@
                                         {#if canEdit(comment.authorId)}
                                             <div class="flex gap-0.5 opacity-0 group-hover/comment:opacity-100 transition-opacity">
                                                 {#if editingCommentId === comment.id}
-                                                    <Button size="sm" onclick={saveEditComment} disabled={submitting} class="h-6 px-2 text-xs">Speichern</Button>
-                                                    <Button size="sm" variant="ghost" onclick={() => editingCommentId = null} class="h-6 px-2 text-xs">Abbrechen</Button>
+                                                    <Button size="sm" onclick={saveEditComment} disabled={submitting} class="h-6 px-2 text-xs">{t('save')}</Button>
+                                                    <Button size="sm" variant="ghost" onclick={() => editingCommentId = null} class="h-6 px-2 text-xs">{t('cancel')}</Button>
                                                 {:else}
                                                     <button onclick={() => startEditComment(comment)} class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
                                                         <Pencil class="w-3 h-3" />
@@ -419,7 +422,7 @@
                                         <div class="mt-3 pl-3 border-l-2 border-border/40 space-y-3">
                                             {#each comment.replies as reply (reply.id)}
                                                 <div class="group/reply flex gap-2">
-                                                    <span class="w-6 h-6 rounded-full bg-gradient-to-tr from-violet-400 to-pink-400 flex items-center justify-center text-[9px] text-white font-bold shrink-0 mt-0.5">
+                                                    <span class="w-6 h-6 rounded-full bg-linear-to-tr from-violet-400 to-pink-400 flex items-center justify-center text-[9px] text-white font-bold shrink-0 mt-0.5">
                                                         {avatarText(reply.author.name)}
                                                     </span>
                                                     <div class="flex-1 min-w-0">
@@ -431,8 +434,8 @@
                                                             {#if canEdit(reply.authorId)}
                                                                 <div class="flex gap-0.5 opacity-0 group-hover/reply:opacity-100 transition-opacity">
                                                                     {#if editingCommentId === reply.id}
-                                                                        <Button size="sm" onclick={saveEditComment} disabled={submitting} class="h-6 px-2 text-xs">Speichern</Button>
-                                                                        <Button size="sm" variant="ghost" onclick={() => editingCommentId = null} class="h-6 px-2 text-xs">Abbrechen</Button>
+                                                                        <Button size="sm" onclick={saveEditComment} disabled={submitting} class="h-6 px-2 text-xs">{t('save')}</Button>
+                                                                        <Button size="sm" variant="ghost" onclick={() => editingCommentId = null} class="h-6 px-2 text-xs">{t('cancel')}</Button>
                                                                     {:else}
                                                                         <button onclick={() => startEditComment(reply)} class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
                                                                             <Pencil class="w-3 h-3" />
@@ -464,13 +467,13 @@
             <!-- New comment form -->
             <div class="border-t border-border/40 p-4 shrink-0 bg-muted/20">
                 <div class="flex gap-3 items-end">
-                    <span class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400 flex items-center justify-center text-[10px] text-white font-bold shrink-0 mb-0.5">
+                    <span class="w-7 h-7 rounded-full bg-linear-to-tr from-blue-400 to-purple-400 flex items-center justify-center text-[10px] text-white font-bold shrink-0 mb-0.5">
                         {avatarText((currentUser as any)?.name ?? '?')}
                     </span>
                     <div class="flex-1 flex gap-2 items-end">
                         <Textarea
                             bind:value={newCommentBody}
-                            placeholder="Antwort schreiben..."
+                            placeholder={t('communityReplyPh')}
                             rows={2}
                             class="resize-none text-sm flex-1"
                             onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitComment(); }}
@@ -480,7 +483,7 @@
                         </Button>
                     </div>
                 </div>
-                <p class="text-[10px] text-muted-foreground mt-1.5 ml-10">Ctrl+Enter zum Senden</p>
+                <p class="text-[10px] text-muted-foreground mt-1.5 ml-10">{t('communitySendHint')}</p>
             </div>
         </div>
     </div>

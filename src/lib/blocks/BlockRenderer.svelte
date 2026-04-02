@@ -127,6 +127,17 @@
   }
 
   onMount(() => {
+    if (block.type === 'custom_css') {
+      const b = block as any;
+      if (b.css) {
+        const style = document.createElement('style');
+        style.setAttribute('data-block-id', b.id);
+        style.textContent = b.css;
+        document.head.appendChild(style);
+        return () => { style.remove(); };
+      }
+      return;
+    }
     if (block.type === 'checkout' && hasPayPal && paypalClientId) {
       if (!(window as any).paypal) {
         const script = document.createElement('script');
@@ -1593,4 +1604,10 @@
       </div>
     </div>
   </section>
+{:else if block.type === 'custom_html'}
+  {@const b = block as any}
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html b.html ?? ''}
+{:else if block.type === 'custom_css'}
+  <!-- CSS injected into <head> via onMount -->
 {/if}

@@ -19,6 +19,8 @@ export function createBlock(type: BlockType): Block {
     case 'image_text': return { id, type, variant: 'image-left', imageUrl: '', imageAlt: '', headline: 'Deine Überschrift', subheadline: 'Ein überzeugender Untertitel', body: '<p>Beschreibe hier, was du sagen möchtest.</p>', ctaText: '', ctaUrl: '' };
     case 'checkout': return { id, type, variant: 'default', headline: '', subtext: '' };
     case 'order_summary': return { id, type, variant: 'default', headline: 'Vielen Dank für deinen Kauf!', subtext: 'Du hast sofortigen Zugang zu deinem Kurs.', ctaText: 'Jetzt zum Kurs' };
+    case 'custom_html': return { id, type, html: '<!-- Dein HTML hier -->' };
+    case 'custom_css': return { id, type, css: '/* Dein CSS hier — wirkt global auf der Seite */' };
     default: throw new Error(`Unknown block type: ${type}`);
   }
 }
@@ -39,6 +41,8 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   image_text: 'Bild + Text',
   checkout: 'Checkout',
   order_summary: 'Bestellübersicht',
+  custom_html: 'Custom HTML',
+  custom_css: 'Custom CSS',
 };
 
 export const BLOCK_VARIANTS: Record<BlockType, Array<{ id: string; label: string }>> = {
@@ -126,4 +130,6 @@ export const BLOCK_VARIANTS: Record<BlockType, Array<{ id: string; label: string
     { id: 'default', label: 'Standard' },
     { id: 'compact', label: 'Kompakt' },
   ],
+  custom_html: [],
+  custom_css: [],
 };

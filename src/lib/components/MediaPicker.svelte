@@ -22,14 +22,16 @@
         accept = 'image/*',
         uploading = $bindable(false),
         label = 'Bild hochladen',
-        /** Optional aspect-ratio smart crop, e.g. "16:9" or "1:1" */
         cropRatio = '',
+        onValueChange,
     }: {
         value?: string;
         accept?: string;
         uploading?: boolean;
         label?: string;
         cropRatio?: string;
+        /** Called when value changes — use instead of bind:value when binding is not possible */
+        onValueChange?: (url: string) => void;
     } = $props();
 
     let open = $state(false);
@@ -68,6 +70,7 @@
 
     function select(url: string) {
         value = url;
+        onValueChange?.(url);
         open = false;
     }
 
@@ -92,6 +95,7 @@
             }
             const data = await res.json();
             value = data.url;
+            onValueChange?.(data.url);
             if (data.thumbnailsGenerated === false) {
                 alert('Bild hochgeladen, aber Thumbnails konnten nicht erstellt werden. Bitte "npm rebuild sharp" auf dem Server ausführen.');
             }

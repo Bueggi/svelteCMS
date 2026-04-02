@@ -1,5 +1,6 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
+    import { toast } from 'svelte-sonner';
     import { invalidateAll } from '$app/navigation';
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
@@ -329,9 +330,11 @@
             <GlassCard variant="neo" class="p-0 overflow-hidden">
                 <form method="POST" action="?/updateIntegrations" use:enhance={() => {
                     isSaving = true;
-                    return async ({ update }) => {
+                    return async ({ update, result }) => {
                         await update();
                         isSaving = false;
+                        if (result.type === 'success') toast.success('Integrationen gespeichert');
+                        else toast.error('Fehler beim Speichern');
                     };
                 }}>
                     <div class="p-8 space-y-8">
@@ -576,7 +579,12 @@
             <GlassCard variant="neo" class="p-0 overflow-hidden">
                 <form method="POST" action="?/updateInvoicing" use:enhance={() => {
                     isSaving = true;
-                    return async ({ update }) => { await update(); isSaving = false; };
+                    return async ({ update, result }) => {
+                        await update();
+                        isSaving = false;
+                        if (result.type === 'success') toast.success('Steuer- & Rechnungseinstellungen gespeichert');
+                        else toast.error('Fehler beim Speichern — bitte Konsole prüfen');
+                    };
                 }}>
                     <div class="p-8 space-y-8">
 
@@ -857,10 +865,12 @@
              <GlassCard variant="neo" class="p-0 overflow-hidden">
                 <form method="POST" action="?/updateSettings" use:enhance={() => {
                     isSaving = true;
-                    return async ({ update }) => {
-                        await update(); // This invalidates all data
-                        await invalidateAll(); // Force re-run of all load functions just in case
+                    return async ({ update, result }) => {
+                        await update();
+                        await invalidateAll();
                         isSaving = false;
+                        if (result.type === 'success') toast.success('Einstellungen gespeichert');
+                        else toast.error('Fehler beim Speichern');
                     };
                 }}>
                     <div class="p-8 space-y-8">

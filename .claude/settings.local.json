@@ -51,7 +51,9 @@
       "Bash(grep -r \"forgetPassword\\\\|forget-password\" /c/Users/chris/Documents/Development/sveltecCourses/node_modules/better-auth/dist/api/ --include=*.js -l)",
       "mcp__Claude_Preview__preview_start",
       "WebSearch",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(grep -r from.*i18n /c/Users/chris/Documents/Development/sveltecCourses/src)",
+      "Bash(grep -r $lib/i18n /c/Users/chris/Documents/Development/sveltecCourses/src)"
     ]
   }
 }

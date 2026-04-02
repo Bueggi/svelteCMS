@@ -238,6 +238,7 @@
                     selectedMethod: isStripeMethod ? selectedMethod : undefined,
                     reverseCharge: reverseChargeApplies,
                     billingAddress,
+                    legalChecks: checkoutLegalTexts.filter((_, i) => legalChecked[i]),
                 })
             });
 

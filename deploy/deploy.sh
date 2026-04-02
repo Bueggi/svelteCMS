@@ -37,10 +37,20 @@ rsync -az \
 rsync -az deploy/ "$SERVER:$APP_DIR/deploy/"
 echo "      ✓ Übertragen"
 
-# 3. Deps installieren + Sharp für ARM64 neu bauen
-echo "[3/5] npm install + rebuild sharp..."
-ssh "$SERVER" "cd $APP_DIR && npm install --omit=dev --prefer-offline --silent && npm rebuild sharp --silent 2>/dev/null || true"
-echo "      ✓ Dependencies aktuell (sharp neu gebaut)"
+# 3. Deps installieren (nur wenn package.json geändert), sharp nur dann neu bauen
+echo "[3/5] npm install (wenn nötig)..."
+ssh "$SERVER" "
+  cd $APP_DIR
+  # Prüfe ob package-lock.json sich geändert hat
+  if ! diff -q package-lock.json node_modules/.package-lock.json > /dev/null 2>&1; then
+    echo '  → package-lock.json geändert, installiere deps...'
+    npm install --omit=dev --prefer-offline --silent
+    npm rebuild sharp --silent 2>/dev/null || true
+  else
+    echo '  → keine Änderungen, überspringe npm install'
+  fi
+"
+echo "      ✓ Dependencies geprüft"
 
 # 4. Schema-Sync (db:push) — .env wird auf dem Server gesourced
 echo "[4/5] db:push (Schema-Sync)..."

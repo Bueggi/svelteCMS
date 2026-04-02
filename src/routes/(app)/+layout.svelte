@@ -38,7 +38,7 @@
         { href: '/dashboard',  label: getT('navOverview'),   icon: LayoutDashboard },
         { href: '/my-courses', label: getT('navMyLearning'), icon: BookOpen },
         { href: '/community',  label: getT('navCommunity'),  icon: MessageCircle },
-        { href: '/billing',    label: 'Abrechnung',          icon: CreditCard },
+        { href: '/billing',    label: getT('navBilling'),    icon: CreditCard },
         { href: '/settings',   label: getT('navSettings'),   icon: Settings },
     ]);
 
@@ -51,7 +51,7 @@
         { href: '/community',        label: getT('navCommunity'),    icon: MessageCircle },
         { href: '/admin/automations',label: getT('navAutomations'),  icon: Zap },
         { href: '/admin/funnels',    label: getT('navFunnels'),      icon: GitBranch },
-        { href: '/admin/invoices',   label: 'Rechnungen',            icon: FileText },
+        { href: '/admin/invoices',   label: getT('navInvoices'),     icon: FileText },
         { href: '/admin/media',      label: getT('navMedia'),        icon: Images },
         { href: '/admin/settings',   label: getT('navSettings'),     icon: Settings },
     ]);

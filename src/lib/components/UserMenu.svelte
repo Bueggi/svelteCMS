@@ -12,8 +12,13 @@
     import { User, Settings, LogOut, LayoutDashboard, Shield } from "lucide-svelte";
     import { authClient } from "$lib/auth-client";
     import { goto } from "$app/navigation";
+    import { getContext } from "svelte";
+    import { getT, type LangKey } from "$lib/i18n";
 
     let { user } = $props();
+
+    const langCtx = getContext<{ lang: LangKey } | undefined>('i18n');
+    const t = $derived(getT(langCtx?.lang ?? 'de'));
 
     async function handleLogout() {
         await authClient.signOut();
@@ -40,23 +45,23 @@
         <DropdownMenuSeparator />
         <DropdownMenuItem href="/dashboard">
             <LayoutDashboard class="mr-2 h-4 w-4" />
-            <span>Dashboard</span>
+            <span>{t('menuDashboard')}</span>
         </DropdownMenuItem>
         <DropdownMenuItem href="/settings">
             <Settings class="mr-2 h-4 w-4" />
-            <span>Settings</span>
+            <span>{t('navSettings')}</span>
         </DropdownMenuItem>
         {#if user.role === 'admin' || user.role === 'instructor'}
             <DropdownMenuSeparator />
             <DropdownMenuItem href="/admin">
                 <Shield class="mr-2 h-4 w-4" />
-                <span>Admin Dashboard</span>
+                <span>{t('menuAdminDashboard')}</span>
             </DropdownMenuItem>
         {/if}
         <DropdownMenuSeparator />
         <DropdownMenuItem onclick={handleLogout}>
             <LogOut class="mr-2 h-4 w-4" />
-            <span>Log out</span>
+            <span>{t('signOut')}</span>
         </DropdownMenuItem>
     </DropdownMenuContent>
 </DropdownMenu>

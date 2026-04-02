@@ -519,3 +519,105 @@
 
 /* Content padding — compact for the bold graphic feel */
 [data-theme="verdant"] main.flex-1 { padding: 2rem 2.5rem !important; }
+
+
+/* ══════════════════════════════════════════════════════════════
+   6 · LUMINA  —  Dark Studio, Amber Gold, Clean & Modern
+   Deep black. Warm amber accent. Flat cards. Smooth & focused.
+   Inspired by modern LMS/streaming platforms.
+   ══════════════════════════════════════════════════════════════ */
+
+[data-theme="lumina"] {
+  --theme-card-bg:      hsl(var(--card));
+  --theme-card-border:  1px solid hsl(var(--border));
+  --theme-card-shadow:  0 2px 12px rgb(0 0 0 / 0.35);
+  --theme-card-blur:    0px;
+  --theme-card-radius:  0.75rem;
+
+  --theme-sidebar-bg:     hsl(var(--sidebar));
+  --theme-sidebar-border: 1px solid hsl(var(--border));
+  --theme-sidebar-blur:   0px;
+
+  --theme-header-bg:     hsl(var(--background));
+  --theme-header-border: 1px solid hsl(var(--border));
+  --theme-header-blur:   0px;
+
+  --theme-mesh-opacity:   0;
+  --theme-shine-display:  none;
+  --theme-transition:     180ms ease;
+}
+
+/* Kill all blur — flat & sharp */
+[data-theme="lumina"] [class*="backdrop-blur"] {
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+
+/* Headings: semi-bold, slight negative tracking — clean dashboard feel */
+[data-theme="lumina"] h1, [data-theme="lumina"] h2, [data-theme="lumina"] h3 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+[data-theme="lumina"] h1 { font-size: 1.875rem !important; font-weight: 700 !important; }
+
+/* Cards: flat, minimal shadow, hover lifts subtly */
+[data-theme="lumina"] .theme-card {
+  transition: box-shadow 180ms ease, transform 180ms ease !important;
+}
+[data-theme="lumina"] .theme-card:hover {
+  box-shadow: 0 4px 24px rgb(0 0 0 / 0.45) !important;
+  transform: translateY(-2px);
+}
+
+/* Sidebar: tighter, clean */
+[data-theme="lumina"] .theme-sidebar {
+  font-size: 0.875rem;
+}
+[data-theme="lumina"] .theme-sidebar .p-6 {
+  padding: 1.25rem 1.25rem !important;
+}
+[data-theme="lumina"] .theme-sidebar nav {
+  padding: 0.75rem 0.75rem !important;
+}
+[data-theme="lumina"] .theme-sidebar nav a {
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  border-radius: 0.5rem !important;
+  padding: 0.45rem 0.75rem !important;
+  transition: background 180ms, color 180ms !important;
+}
+
+/* Active nav: amber left accent + subtle amber bg tint */
+[data-theme="lumina"] .theme-sidebar nav a[class*="bg-primary"] {
+  background: hsl(var(--primary) / 0.12) !important;
+  color: hsl(var(--primary)) !important;
+  box-shadow: inset 3px 0 0 hsl(var(--primary)) !important;
+  border-radius: 0 0.5rem 0.5rem 0 !important;
+  font-weight: 600 !important;
+}
+[data-theme="lumina"] .theme-sidebar nav a:not([class*="bg-primary"]):hover {
+  background: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Primary buttons: amber with warm glow */
+[data-theme="lumina"] button:where([class*="bg-primary"]),
+[data-theme="lumina"] a:where([class*="bg-primary"]) {
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.3), 0 2px 6px rgb(0 0 0 / 0.25) !important;
+  font-weight: 600 !important;
+  transition: box-shadow 180ms ease, transform 180ms ease !important;
+}
+[data-theme="lumina"] button:where([class*="bg-primary"]):hover,
+[data-theme="lumina"] a:where([class*="bg-primary"]):hover {
+  box-shadow: 0 0 32px hsl(var(--primary) / 0.45), 0 4px 12px rgb(0 0 0 / 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Smooth transitions */
+[data-theme="lumina"] * { transition-duration: 180ms !important; }
+[data-theme="lumina"] .theme-card,
+[data-theme="lumina"] .theme-card * { transition-duration: unset !important; }
+
+/* Comfortable content padding */
+[data-theme="lumina"] main.flex-1 { padding: 2rem 2.5rem !important; }

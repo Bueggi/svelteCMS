@@ -7,6 +7,7 @@
   import { createBlock, BLOCK_LABELS, BLOCK_VARIANTS } from './defaults';
   import { generateId } from '$lib/utils/uuid';
   import { toast } from 'svelte-sonner';
+  import MediaPicker from '$lib/components/MediaPicker.svelte';
 
   const inp = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors';
   const addBtn = 'text-sm text-primary hover:text-primary/80 transition-colors flex items-center gap-1 py-1';
@@ -652,8 +653,8 @@
                   </div>
                   {#if editingBlock.variant !== 'minimal'}
                     <div class="space-y-1.5">
-                      <label class="text-xs font-medium text-foreground">Bild-URL</label>
-                      <input type="url" class={inp} value={editingBlock.imageUrl ?? ''} oninput={(e) => update('imageUrl', e.currentTarget.value)} placeholder="https://..." />
+                      <label class="text-xs font-medium text-foreground">Bild</label>
+                      <MediaPicker value={editingBlock.imageUrl ?? ''} onValueChange={(url) => update('imageUrl', url)} label="Bild hochladen" />
                     </div>
                     {@render buttonInput('Button-Text', 'ctaText', 'Jetzt kaufen')}
                   {/if}
@@ -685,7 +686,9 @@
                         </div>
                         <textarea class={inp} rows="2" value={item.text} oninput={(e) => updateItem('items', i, 'text', e.currentTarget.value)} placeholder="Bewertungstext"></textarea>
                         <div class="flex items-center gap-2">
-                          <input class={inp} value={item.avatarUrl ?? ''} oninput={(e) => updateItem('items', i, 'avatarUrl', e.currentTarget.value)} placeholder="Foto-URL" />
+                          <div class="flex-1">
+                            <MediaPicker value={item.avatarUrl ?? ''} onValueChange={(url) => updateItem('items', i, 'avatarUrl', url)} label="Foto" />
+                          </div>
                           <select class="{inp} w-28 shrink-0" value={item.rating ?? 5} onchange={(e) => updateItem('items', i, 'rating', parseInt(e.currentTarget.value))}>
                             {#each [5,4,3,2,1] as r}<option value={r}>{r} ★</option>{/each}
                           </select>
@@ -738,8 +741,8 @@
                     <textarea class={inp} rows="3" value={editingBlock.bio} oninput={(e) => update('bio', e.currentTarget.value)}></textarea>
                   </div>
                   <div class="space-y-1.5">
-                    <label class="text-xs font-medium text-foreground">Foto-URL</label>
-                    <input type="url" class={inp} value={editingBlock.imageUrl ?? ''} oninput={(e) => update('imageUrl', e.currentTarget.value)} placeholder="https://..." />
+                    <label class="text-xs font-medium text-foreground">Foto</label>
+                    <MediaPicker value={editingBlock.imageUrl ?? ''} onValueChange={(url) => update('imageUrl', url)} label="Foto hochladen" />
                   </div>
                   <div class="space-y-2">
                     <label class="text-xs font-medium text-foreground uppercase tracking-wider">Qualifikationen</label>
@@ -835,8 +838,8 @@
 
                 {:else if editingBlock.type === 'image_text'}
                   <div class="space-y-1.5">
-                    <label class="text-xs font-medium text-foreground">Bild-URL *</label>
-                    <input type="url" class={inp} value={editingBlock.imageUrl ?? ''} oninput={(e) => update('imageUrl', e.currentTarget.value)} placeholder="https://..." />
+                    <label class="text-xs font-medium text-foreground">Bild *</label>
+                    <MediaPicker value={editingBlock.imageUrl ?? ''} onValueChange={(url) => update('imageUrl', url)} label="Bild hochladen" />
                   </div>
                   <div class="space-y-1.5">
                     <label class="text-xs font-medium text-foreground">Bild Alt-Text</label>
@@ -871,9 +874,30 @@
                     <label class="text-xs font-medium text-foreground">Button-Text</label>
                     <input class={inp} value={editingBlock.ctaText ?? ''} oninput={(e) => update('ctaText', e.currentTarget.value)} placeholder="Jetzt zum Kurs" />
                   </div>
+
+                {:else if editingBlock.type === 'custom_html'}
+                  <div class="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-muted-foreground space-y-1">
+                    <p class="font-semibold text-foreground text-sm">⚠️ Custom HTML</p>
+                    <p>Wird direkt in die Seite gerendert. Nur vertrauenswürdigen Code einfügen.</p>
+                  </div>
+                  <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-foreground">HTML-Code</label>
+                    <textarea class="{inp} font-mono text-xs" rows="12" value={editingBlock.html ?? ''} oninput={(e) => update('html', e.currentTarget.value)} placeholder="<!-- Dein HTML hier -->&#10;<div class=&quot;my-element&quot;>...</div>" spellcheck="false"></textarea>
+                  </div>
+
+                {:else if editingBlock.type === 'custom_css'}
+                  <div class="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-xs text-muted-foreground space-y-1">
+                    <p class="font-semibold text-foreground text-sm">🎨 Custom CSS</p>
+                    <p>Wirkt global auf der gesamten Seite. Wird als &lt;style&gt;-Tag im &lt;head&gt; gerendert.</p>
+                  </div>
+                  <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-foreground">CSS-Code</label>
+                    <textarea class="{inp} font-mono text-xs" rows="12" value={editingBlock.css ?? ''} oninput={(e) => update('css', e.currentTarget.value)} placeholder="/* Dein CSS hier */&#10;.hero-section { background: #fff; }" spellcheck="false"></textarea>
+                  </div>
                 {/if}
 
-                <!-- ── Typografie ── -->
+                <!-- ── Typografie + Stil (nicht für custom_html/custom_css) ── -->
+                {#if editingBlock.type !== 'custom_html' && editingBlock.type !== 'custom_css'}
                 <div class="border-t border-border/30 pt-4 space-y-3">
                   <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Typografie</p>
 
@@ -1061,6 +1085,7 @@
                     </div>
                   </div>
                 </div>
+                {/if}
 
               </div>
             {/if}

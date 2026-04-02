@@ -2,6 +2,8 @@
     import { enhance } from '$app/forms';
     import { Button } from "$lib/components/ui/button";
     import { ChevronLeft, ChevronRight, CheckCircle, Lock, Star } from "lucide-svelte";
+    import { getContext } from "svelte";
+    import { getT, type LangKey } from "$lib/i18n";
 
     let {
         activeLesson,
@@ -16,17 +18,16 @@
 
     let baseUrl = $derived(preview ? `/admin/preview/courses/${course.slug}/learn` : `/courses/${course.slug}/learn`);
 
+    const langCtx = getContext<{ lang: LangKey } | undefined>('i18n');
+    const t = $derived(getT(langCtx?.lang ?? 'de'));
+
     function toEmbedUrl(url: string): string {
         if (!url) return url;
-        // Already an embed URL
         if (url.includes('youtube.com/embed/') || url.includes('player.vimeo.com/')) return url;
-        // youtu.be shortlink
         const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
         if (shortMatch) return `https://www.youtube.com/embed/${shortMatch[1]}`;
-        // youtube.com/watch?v=
         const watchMatch = url.match(/youtube\.com\/watch\?(?:.*&)?v=([^&]+)/);
         if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}`;
-        // vimeo.com/ID
         const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
         if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
         return url;
@@ -43,6 +44,8 @@
         hoverRating = 0;
         ratingSubmitted = moduleRatingData?.rating != null;
     });
+
+    const ratingLabels = $derived(['', t('playerRating1'), t('playerRating2'), t('playerRating3'), t('playerRating4'), t('playerRating5')]);
 </script>
 
 <div class="space-y-8 animate-in fade-in duration-500">
@@ -56,13 +59,15 @@
                         <div class="w-16 h-16 rounded-full bg-muted-foreground/10 flex items-center justify-center mx-auto mb-4">
                             <Lock class="w-8 h-8 text-muted-foreground" />
                         </div>
-                        <h2 class="text-xl font-serif font-semibold mb-2">Lektion noch gesperrt</h2>
+                        <h2 class="text-xl font-serif font-semibold mb-2">{t('playerLessonLocked')}</h2>
                         {#if activeLesson.unlockDaysLeft != null}
                             <p class="text-muted-foreground">
-                                Diese Lektion wird in <strong>{activeLesson.unlockDaysLeft} {activeLesson.unlockDaysLeft === 1 ? 'Tag' : 'Tagen'}</strong> freigeschaltet.
+                                {activeLesson.unlockDaysLeft === 1
+                                    ? `${t('playerLessonLocked')} — ${t('playerDay')}`
+                                    : `${t('playerLessonLocked')} — ${activeLesson.unlockDaysLeft} ${t('playerDays')}`}
                             </p>
                         {:else}
-                            <p class="text-muted-foreground">Diese Lektion ist noch nicht verfügbar.</p>
+                            <p class="text-muted-foreground">{t('playerLockedUnavailable')}</p>
                         {/if}
                     </div>
                 </div>
@@ -91,12 +96,12 @@
                 <div class="border border-border/50 rounded-2xl p-5 bg-muted/20 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Modul bewerten</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('playerRateModule')}</p>
                             <p class="text-sm font-medium text-foreground mt-0.5">{moduleRatingData.moduleName}</p>
                         </div>
                         {#if ratingSubmitted}
                             <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-                                Bewertet ✓
+                                {t('playerRated')}
                             </span>
                         {/if}
                     </div>
@@ -118,7 +123,7 @@
                                     onmouseleave={() => hoverRating = 0}
                                     onclick={() => currentRating = n}
                                     class="transition-transform hover:scale-110 focus:outline-none"
-                                    aria-label="{n} Stern{n !== 1 ? 'e' : ''}"
+                                    aria-label="{n} {n === 1 ? t('playerDay') : t('playerDays')}"
                                 >
                                     <Star
                                         class="w-7 h-7 transition-colors {n <= (hoverRating || currentRating) ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground/25'}"
@@ -127,7 +132,7 @@
                             {/each}
                             {#if currentRating > 0}
                                 <span class="ml-2 text-sm text-muted-foreground">
-                                    {['', 'Schwach', 'Ausbaufähig', 'Gut', 'Sehr gut', 'Ausgezeichnet'][currentRating]}
+                                    {ratingLabels[currentRating]}
                                 </span>
                             {/if}
                         </div>
@@ -139,11 +144,11 @@
                 <div class="flex gap-2 w-full sm:w-auto">
                     {#if prevLessonId}
                         <Button variant="outline" href={`${baseUrl}/${prevLessonId}`} class="flex-1 sm:flex-none">
-                            <ChevronLeft class="w-4 h-4 mr-2" /> Previous
+                            <ChevronLeft class="w-4 h-4 mr-2" /> {t('back')}
                         </Button>
                     {:else}
                         <Button variant="outline" disabled class="flex-1 sm:flex-none">
-                            <ChevronLeft class="w-4 h-4 mr-2" /> Previous
+                            <ChevronLeft class="w-4 h-4 mr-2" /> {t('back')}
                         </Button>
                     {/if}
                 </div>
@@ -159,26 +164,26 @@
                         <input type="hidden" name="lessonId" value={activeLesson.id} />
                         <Button type="submit" size="lg" class="w-full sm:min-w-[200px] bg-primary hover:bg-primary/90" disabled={isCompleting}>
                             {#if isCompleting}
-                                Saving...
+                                {t('saving')}
                             {:else}
-                                <CheckCircle class="w-4 h-4 mr-2" /> Mark as Complete
+                                <CheckCircle class="w-4 h-4 mr-2" /> {t('playerMarkComplete')}
                             {/if}
                         </Button>
                     </form>
                 {:else}
                     <div class="px-6 py-2 bg-luxury/10 border border-luxury/20 rounded-full text-luxury text-sm font-medium animate-pulse">
-                        Instructor Preview Mode
+                        {t('playerInstructorPreview')}
                     </div>
                 {/if}
 
                 <div class="flex gap-2 w-full sm:w-auto">
                      {#if nextLessonId}
                         <Button variant="outline" href={`${baseUrl}/${nextLessonId}`} class="flex-1 sm:flex-none">
-                            Next <ChevronRight class="w-4 h-4 ml-2" />
+                            {t('next')} <ChevronRight class="w-4 h-4 ml-2" />
                         </Button>
                     {:else}
                         <Button variant="outline" disabled class="flex-1 sm:flex-none">
-                            Next <ChevronRight class="w-4 h-4 ml-2" />
+                            {t('next')} <ChevronRight class="w-4 h-4 ml-2" />
                         </Button>
                     {/if}
                 </div>
@@ -189,7 +194,7 @@
             <div class="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
                 <Star class="w-8 h-8 text-muted-foreground" />
             </div>
-            <p class="text-muted-foreground font-serif text-lg">Select a lesson to start learning.</p>
+            <p class="text-muted-foreground font-serif text-lg">{t('playerSelectLesson')}</p>
         </div>
     {/if}
 </div>

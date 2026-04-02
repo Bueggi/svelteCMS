@@ -188,6 +188,19 @@
                                     </Badge>
                                 </div>
 
+                                {#if purchase.legalChecksJson}
+                                    {@const checks = (() => { try { return JSON.parse(purchase.legalChecksJson); } catch { return []; } })()}
+                                    {#if checks.length > 0}
+                                        <details class="text-xs text-muted-foreground mt-1">
+                                            <summary class="cursor-pointer hover:text-foreground">✓ {checks.length} Checkbox{checks.length !== 1 ? 'en' : ''} bestätigt</summary>
+                                            <ul class="mt-1 space-y-0.5 pl-3 border-l border-border">
+                                                {#each checks as check}
+                                                    <li class="line-clamp-2">{check}</li>
+                                                {/each}
+                                            </ul>
+                                        </details>
+                                    {/if}
+                                {/if}
                                 {#if purchase.status !== 'refunded'}
                                     <form action="?/refundPurchase" method="POST" use:enhance={() => {
                                         isRefunding = purchase.id;

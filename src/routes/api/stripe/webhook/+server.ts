@@ -93,10 +93,14 @@ export const POST: RequestHandler = async ({ request }) => {
                 try {
                     const sessionId = i === 0 ? session.id : `${session.id}_${i}`;
 
+                    const legalChecksRaw = session.metadata?.legalChecks || '';
+                    const legalChecksJson = legalChecksRaw || null;
+
                     const [purchase] = await db.insert(purchases).values({
                         userId, courseId,
                         stripeCheckoutSessionId: sessionId,
                         amount, status: 'completed',
+                        legalChecksJson,
                     }).onConflictDoNothing().returning({ id: purchases.id });
 
                     // For subscriptions, store stripeSubscriptionId and period end

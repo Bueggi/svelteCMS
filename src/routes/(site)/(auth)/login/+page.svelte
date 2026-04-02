@@ -2,6 +2,8 @@
     import { authClient } from "$lib/auth-client";
     import { Loader2, Eye, EyeOff } from "@lucide/svelte";
     import { goto } from "$app/navigation";
+    import { getContext } from "svelte";
+    import { getT, type LangKey } from "$lib/i18n";
 
     let email = $state("");
     let password = $state("");
@@ -9,8 +11,11 @@
     let showPassword = $state(false);
     let error = $state("");
 
+    const langCtx = getContext<{ lang: LangKey } | undefined>('i18n');
+    const t = $derived(getT(langCtx?.lang ?? 'de'));
+
     async function handleLogin() {
-        if (!email || !password) { error = "Please fill in all fields."; return; }
+        if (!email || !password) { error = t('loginErrRequired'); return; }
         isLoading = true;
         error = "";
         try {
@@ -19,14 +24,14 @@
                 onError: (ctx) => { error = ctx.error.message; isLoading = false; }
             });
         } catch {
-            error = "An unexpected error occurred.";
+            error = t('loginErrUnexpected');
             isLoading = false;
         }
     }
 
 </script>
 
-<svelte:head><title>Sign In</title></svelte:head>
+<svelte:head><title>{t('signIn')}</title></svelte:head>
 
 <div class="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
     <!-- Background orbs -->
@@ -37,11 +42,11 @@
     </div>
 
     <!-- Form -->
-    <div class="relative z-10 w-full max-w-[360px] space-y-8">
+    <div class="relative z-10 w-full max-w-90 space-y-8">
 
         <div class="space-y-1">
-            <h1 class="text-3xl font-serif font-medium tracking-tight">Sign in</h1>
-            <p class="text-sm text-muted-foreground">Enter your credentials to continue.</p>
+            <h1 class="text-3xl font-serif font-medium tracking-tight">{t('signIn')}</h1>
+            <p class="text-sm text-muted-foreground">{t('loginSubtitle')}</p>
         </div>
 
         <form class="space-y-4" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
@@ -50,18 +55,18 @@
             {/if}
 
             <div class="field">
-                <label for="email">Email</label>
+                <label for="email">{t('emailAddress')}</label>
                 <input
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder={t('loginEmailPh')}
                     bind:value={email}
                     disabled={isLoading}
                 />
             </div>
 
             <div class="field">
-                <label for="password">Password</label>
+                <label for="password">{t('password')}</label>
                 <div class="relative">
                     <input
                         id="password"
@@ -90,14 +95,14 @@
                 {#if isLoading}
                     <Loader2 class="w-4 h-4 animate-spin" />
                 {:else}
-                    Sign in
+                    {t('signIn')}
                 {/if}
             </button>
         </form>
 
         <p class="text-center text-sm text-muted-foreground">
-            No account?
-            <a href="/register" class="text-foreground font-medium underline underline-offset-4 hover:text-primary transition-colors ml-1">Create one</a>
+            {t('noAccount')}
+            <a href="/register" class="text-foreground font-medium underline underline-offset-4 hover:text-primary transition-colors ml-1">{t('loginCreate')}</a>
         </p>
     </div>
 </div>

@@ -26,9 +26,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         funnelSlug?: string;
         bumpCourseIds?: string[];
         sandboxMode?: boolean;
+        legalChecks?: string[];
     };
 
-    const { courseId, upsellIds = [], couponCode, selectedMethod, reverseCharge = false, billingAddress, funnelSlug, bumpCourseIds = [], sandboxMode = false } = body;
+    const { courseId, upsellIds = [], couponCode, selectedMethod, reverseCharge = false, billingAddress, funnelSlug, bumpCourseIds = [], sandboxMode = false, legalChecks = [] } = body;
 
     if (!courseId) {
         return error(400, 'Course ID is required');
@@ -243,6 +244,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         billingCity: billingAddress?.city || '',
         billingCountry: billingAddress?.country || '',
         billingVatId: billingAddress?.vatId || '',
+        // Stripe metadata values must be strings ≤500 chars each
+        legalChecks: legalChecks.length > 0 ? JSON.stringify(legalChecks).slice(0, 500) : '',
     };
 
     try {

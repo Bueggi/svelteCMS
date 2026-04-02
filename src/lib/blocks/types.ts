@@ -107,6 +107,16 @@ export interface UrgencyBlock {
   style?: 'banner' | 'badge'; // deprecated – use variant
 }
 
+export interface CustomHtmlBlock {
+  id: string; type: 'custom_html';
+  html: string;
+}
+
+export interface CustomCssBlock {
+  id: string; type: 'custom_css';
+  css: string;
+}
+
 export interface CheckoutBlock {
   id: string; type: 'checkout';
   variant?: 'default' | 'split' | 'minimal';
@@ -137,10 +147,10 @@ export interface ImageTextBlock {
   ctaUrl?: string; // custom URL; falls back to /checkout/{courseSlug}
 }
 
-export type Block = HeroBlock | FeaturesBlock | TestimonialsBlock | FaqBlock | RichTextBlock | CtaBlock | InstructorBlock | VideoBlock | GuaranteeBlock | BulletsBlock | SocialProofBlock | UrgencyBlock | ImageTextBlock | CheckoutBlock | OrderSummaryBlock;
+export type Block = HeroBlock | FeaturesBlock | TestimonialsBlock | FaqBlock | RichTextBlock | CtaBlock | InstructorBlock | VideoBlock | GuaranteeBlock | BulletsBlock | SocialProofBlock | UrgencyBlock | ImageTextBlock | CheckoutBlock | OrderSummaryBlock | CustomHtmlBlock | CustomCssBlock;
 export type BlockType = Block['type'];
 
-export const ALL_BLOCK_TYPES: BlockType[] = ['hero', 'features', 'testimonials', 'faq', 'richtext', 'cta', 'instructor', 'video', 'guarantee', 'bullets', 'social_proof', 'urgency', 'image_text', 'checkout', 'order_summary'];
+export const ALL_BLOCK_TYPES: BlockType[] = ['hero', 'features', 'testimonials', 'faq', 'richtext', 'cta', 'instructor', 'video', 'guarantee', 'bullets', 'social_proof', 'urgency', 'image_text', 'checkout', 'order_summary', 'custom_html', 'custom_css'];
 
 // Kept for backwards compatibility
 export const LANDING_BLOCK_TYPES = ALL_BLOCK_TYPES;

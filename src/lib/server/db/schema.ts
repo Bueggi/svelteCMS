@@ -326,6 +326,8 @@ export const purchases = pgTable('purchases', {
 	status: purchaseStatusEnum('status').notNull().default('completed'),
 	paymentProvider: text('payment_provider').notNull().default('stripe'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
+	// Confirmed legal checkboxes at time of purchase (JSON: string[])
+	legalChecksJson: text('legal_checks_json'),
 });
 
 export const invoices = pgTable('invoices', {

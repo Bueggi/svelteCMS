@@ -892,7 +892,7 @@
                   </div>
                   <div class="space-y-1.5">
                     <label class="text-xs font-medium text-foreground">CSS-Code</label>
-                    <textarea class="{inp} font-mono text-xs" rows="12" value={editingBlock.css ?? ''} oninput={(e) => update('css', e.currentTarget.value)} placeholder="/* Dein CSS hier */&#10;.hero-section { background: #fff; }" spellcheck="false"></textarea>
+                    <textarea class="{inp} font-mono text-xs" rows="12" value={editingBlock.css ?? ''} oninput={(e) => update('css', e.currentTarget.value)} placeholder={'/* Dein CSS hier */\n.hero-section { background: #fff; }'} spellcheck="false"></textarea>
                   </div>
                 {/if}
 

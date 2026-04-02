@@ -146,10 +146,11 @@
 
 <!-- Modal overlay -->
 {#if open}
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
+    role="presentation"
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
     onclick={(e) => { if (e.target === e.currentTarget) open = false; }}
+    onkeydown={(e) => { if (e.key === 'Escape') open = false; }}
 >
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
 

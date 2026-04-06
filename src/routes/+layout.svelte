@@ -38,6 +38,12 @@
     const background = $derived(settings?.backgroundColor || v.background);
     const foreground = $derived(settings?.foregroundColor || v.foreground);
 
+    // Per-theme custom CSS
+    function parseThemeCss(raw: string | null | undefined, themeId: string): string {
+        try { return (JSON.parse(raw || '{}') as Record<string, string>)[themeId] ?? ''; } catch { return ''; }
+    }
+    const customCss = $derived(parseThemeCss((settings as any)?.themeCustomCss, activeTheme.id));
+
     function autoFg(hsl: string): string {
         const parts = hsl.trim().split(/[\s,]+/);
         const l = parseFloat(parts[2]);
@@ -72,6 +78,9 @@
         --sidebar-accent:${v.sidebarAccent};--sidebar-accent-foreground:${v.sidebarAccentForeground};
         --sidebar-border:${v.sidebarBorder};--sidebar-ring:${primary};
     }</style>`}
+    {#if customCss}
+        {@html `<style id="theme-custom-css">${customCss}</style>`}
+    {/if}
 </svelte:head>
 
 <div

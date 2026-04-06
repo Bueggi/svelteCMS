@@ -103,6 +103,9 @@ export const siteSettings = pgTable('site_settings', {
 	// Checkout customization
 	checkoutButtonColor: text('checkout_button_color'),  // hex, e.g. #e86a3a
 	checkoutLegalTexts: text('checkout_legal_texts'),    // JSON: string[] — one required checkbox per item
+
+	// Per-theme custom CSS overrides: JSON Record<themeId, string>
+	themeCustomCss: text('theme_custom_css'),
 });
 
 /**

@@ -47,6 +47,29 @@
         invoicePrefix   = settings?.invoicePrefix   ?? 'INV';
     });
 
+    // ── Checkout customization state ─────────────────────────────────────────
+    type LegalItem = { text: string; required: boolean };
+    let checkoutButtonColorHex = $state(settings?.checkoutButtonColor ?? '');
+    let legalItems = $state<LegalItem[]>([]);
+
+    $effect(() => {
+        checkoutButtonColorHex = settings?.checkoutButtonColor ?? '';
+        try {
+            const raw = JSON.parse(settings?.checkoutLegalTexts || '[]');
+            legalItems = (raw as any[]).map(item =>
+                typeof item === 'string' ? { text: item, required: true } : { text: item.text ?? '', required: item.required !== false }
+            );
+        } catch { legalItems = []; }
+    });
+
+    function addLegalItem() {
+        legalItems = [...legalItems, { text: '', required: true }];
+    }
+
+    function removeLegalItem(i: number) {
+        legalItems = legalItems.filter((_, idx) => idx !== i);
+    }
+
     const TEMPLATE_VARS = [
         { name: '{{invoice_number}}',     desc: 'Rechnungsnummer, z.B. INV-2026-0001' },
         { name: '{{invoice_date}}',       desc: 'Rechnungsdatum' },
@@ -67,6 +90,30 @@
         { name: '{{reverse_charge_row}}', desc: 'Hinweis-Zeile wenn Reverse Charge gilt' },
         { name: '{{notes}}',              desc: 'Fußtext / Rechtliche Hinweise' },
     ];
+    // ── Per-theme custom CSS ──────────────────────────────────────────────────
+    let themeCustomCssMap = $state<Record<string, string>>({});
+    let currentThemeCss = $state('');
+
+    $effect(() => {
+        try { themeCustomCssMap = JSON.parse((settings as any)?.themeCustomCss || '{}'); } catch { themeCustomCssMap = {}; }
+    });
+
+    // When selectedThemeId changes, load that theme's CSS into the editor
+    $effect(() => {
+        currentThemeCss = themeCustomCssMap[selectedThemeId] ?? '';
+    });
+
+    // Live-inject custom CSS while editing (before save)
+    $effect(() => {
+        let el = document.getElementById('theme-custom-css-preview') as HTMLStyleElement | null;
+        if (!el) {
+            el = document.createElement('style');
+            el.id = 'theme-custom-css-preview';
+            document.head.appendChild(el);
+        }
+        el.textContent = currentThemeCss;
+    });
+
     let showStripeSecret = $state(false);
 
     // Logo & Favicon upload state
@@ -929,50 +976,13 @@
                                 <div class="border-t border-white/10 pt-6 space-y-4">
                                     <div>
                                         <h3 class="text-base font-semibold">Checkout</h3>
-                                        <p class="text-sm text-muted-foreground">Basis-URL der Website und Checkout-Anpassungen.</p>
+                                        <p class="text-sm text-muted-foreground">Basis-URL der Website für Stripe-Weiterleitungen.</p>
                                     </div>
 
                                     <div class="grid gap-2">
                                         <Label for="siteUrl">Website-URL</Label>
                                         <Input id="siteUrl" name="siteUrl" value={settings?.siteUrl || ''} placeholder="https://deineshop.de" class="bg-background/50" />
                                         <p class="text-xs text-muted-foreground">Wird für Stripe Erfolgs-/Abbruch-URLs verwendet. Muss ohne abschließenden Schrägstrich angegeben werden.</p>
-                                    </div>
-
-                                    <div class="grid gap-2">
-                                        <Label for="checkoutButtonColor">Bezahlen-Button Farbe</Label>
-                                        <div class="flex items-center gap-3">
-                                            <input
-                                                type="color"
-                                                id="checkoutButtonColor"
-                                                name="checkoutButtonColor"
-                                                value={settings?.checkoutButtonColor || '#000000'}
-                                                class="w-10 h-10 rounded cursor-pointer border border-border bg-transparent p-0.5"
-                                            />
-                                            <Input
-                                                value={settings?.checkoutButtonColor || ''}
-                                                placeholder="#e86a3a (leer = Standard)"
-                                                class="bg-background/50 font-mono flex-1"
-                                                oninput={(e) => {
-                                                    const colorInput = document.getElementById('checkoutButtonColor') as HTMLInputElement;
-                                                    if (colorInput) colorInput.value = (e.target as HTMLInputElement).value;
-                                                }}
-                                                readonly
-                                            />
-                                        </div>
-                                        <p class="text-xs text-muted-foreground">Leer lassen = Standard-Primärfarbe wird verwendet.</p>
-                                    </div>
-
-                                    <div class="grid gap-2">
-                                        <Label for="checkoutLegalTexts">Pflicht-Checkboxen im Checkout</Label>
-                                        <textarea
-                                            id="checkoutLegalTexts"
-                                            name="checkoutLegalTextsRaw"
-                                            rows={4}
-                                            value={(() => { try { return (JSON.parse(settings?.checkoutLegalTexts || '[]') as string[]).join('\n'); } catch { return ''; } })()}
-                                            placeholder={"Ich bestätige, dass die digitale Leistung sofort erbracht wird und verzichte auf mein Widerrufsrecht.\nIch habe die Datenschutzerklärung gelesen und akzeptiere diese."}
-                                            class="w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm resize-y min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring"
-                                        ></textarea>
-                                        <p class="text-xs text-muted-foreground">Eine Checkbox pro Zeile. Alle Felder müssen vom Käufer bestätigt werden, bevor die Zahlung möglich ist.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1027,6 +1037,8 @@
                                 <input type="hidden" name="accentColor" id="pickerAccent" value={pickerAccent} />
                                 <input type="hidden" name="backgroundColor" id="pickerBg" value={pickerBg} />
                                 <input type="hidden" name="foregroundColor" id="pickerFg" value={pickerFg} />
+                                <!-- CSS for the active theme -->
+                                <input type="hidden" name="themeCustomCssForActive" value={currentThemeCss} />
 
                                 <!-- Theme Cards -->
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1086,6 +1098,45 @@
                                         </button>
                                     {/each}
                                 </div>
+
+                                <!-- Custom CSS Editor -->
+                                <details class="border border-white/10 rounded-xl overflow-hidden">
+                                    <summary class="cursor-pointer px-6 py-4 text-sm font-medium flex items-center gap-2 hover:bg-muted/30 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                                        Custom CSS
+                                        <span class="ml-1 text-xs text-muted-foreground">— nur für Theme „{themes.find(t => t.id === selectedThemeId)?.name ?? selectedThemeId}"</span>
+                                        {#if currentThemeCss.trim()}
+                                            <span class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                                Aktiv
+                                            </span>
+                                        {:else}
+                                            <span class="ml-auto text-xs text-muted-foreground">Leer</span>
+                                        {/if}
+                                    </summary>
+                                    <div class="border-t border-white/10 p-5 space-y-3">
+                                        <p class="text-xs text-muted-foreground">CSS wird nur für das aktuell gewählte Theme gespeichert und angewendet. Änderungen sind sofort als Live-Vorschau sichtbar.</p>
+                                        <div class="relative">
+                                            <textarea
+                                                rows={16}
+                                                spellcheck={false}
+                                                bind:value={currentThemeCss}
+                                                placeholder={'.my-class {\n  color: red;\n}\n\n/* Tipps:\n   Nutze CSS-Variablen wie var(--primary), var(--background)\n   Greife auf [data-theme="' + selectedThemeId + '"] zu für theme-spezifische Regeln\n*/'}
+                                                class="w-full rounded-lg border border-input bg-[hsl(0_0%_8%)] text-[hsl(0_0%_90%)] px-4 py-3 text-[13px] font-mono leading-relaxed resize-y min-h-[280px] focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-[hsl(0_0%_40%)]"
+                                            ></textarea>
+                                            {#if currentThemeCss.trim()}
+                                                <button
+                                                    type="button"
+                                                    onclick={() => currentThemeCss = ''}
+                                                    class="absolute top-2 right-2 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded bg-muted/60"
+                                                >
+                                                    Leeren
+                                                </button>
+                                            {/if}
+                                        </div>
+                                        <p class="text-xs text-muted-foreground">Wird beim Klick auf „Einstellungen speichern" gespeichert.</p>
+                                    </div>
+                                </details>
 
                                 <!-- Advanced: Custom Color Overrides -->
                                 <details class="border border-white/10 rounded-xl overflow-hidden">

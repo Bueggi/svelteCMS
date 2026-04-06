@@ -106,10 +106,18 @@ export const actions: Actions = {
 		const foregroundColor = data.get('foregroundColor') as string;
 		const registrationEnabled = data.get('registrationEnabled') === 'true';
 		const siteUrl = (data.get('siteUrl') as string)?.trim() || null;
-		const checkoutButtonColor = (data.get('checkoutButtonColor') as string)?.trim() || null;
-		const checkoutLegalTextsRaw = (data.get('checkoutLegalTextsRaw') as string) || '';
-		const checkoutLegalTextsArr = checkoutLegalTextsRaw.split('\n').map(s => s.trim()).filter(Boolean);
-		const checkoutLegalTexts = checkoutLegalTextsArr.length > 0 ? JSON.stringify(checkoutLegalTextsArr) : null;
+
+		// Merge per-theme CSS into existing JSON map
+		const cssForActive = (data.get('themeCustomCssForActive') as string) ?? '';
+		const existing = await db.query.siteSettings.findFirst({ columns: { themeCustomCss: true } });
+		let cssMap: Record<string, string> = {};
+		try { cssMap = JSON.parse(existing?.themeCustomCss || '{}'); } catch { cssMap = {}; }
+		if (cssForActive.trim()) {
+			cssMap[activeTheme] = cssForActive;
+		} else {
+			delete cssMap[activeTheme];
+		}
+		const themeCustomCss = Object.keys(cssMap).length > 0 ? JSON.stringify(cssMap) : null;
 
 		try {
 			await db
@@ -131,8 +139,7 @@ export const actions: Actions = {
 					foregroundColor,
 					registrationEnabled,
 					siteUrl,
-					checkoutButtonColor,
-					checkoutLegalTexts,
+					themeCustomCss,
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
@@ -153,8 +160,7 @@ export const actions: Actions = {
 						foregroundColor,
 						registrationEnabled,
 						siteUrl,
-						checkoutButtonColor,
-						checkoutLegalTexts,
+						themeCustomCss,
 						updatedAt: new Date(),
 					},
 				});
@@ -232,6 +238,12 @@ export const actions: Actions = {
 		const companyVatId = (data.get('companyVatId') as string)?.trim() || null;
 		const companyEmail = (data.get('companyEmail') as string)?.trim() || null;
 		const companyPhone = (data.get('companyPhone') as string)?.trim() || null;
+		const checkoutButtonColor = (data.get('checkoutButtonColor') as string)?.trim() || null;
+		let checkoutLegalTexts: string | null = null;
+		try {
+			const raw = JSON.parse((data.get('checkoutLegalTexts') as string) || '[]');
+			checkoutLegalTexts = Array.isArray(raw) && raw.length > 0 ? JSON.stringify(raw) : null;
+		} catch { checkoutLegalTexts = null; }
 
 		try {
 			await db
@@ -248,6 +260,8 @@ export const actions: Actions = {
 					companyVatId,
 					companyEmail,
 					companyPhone,
+					checkoutButtonColor,
+					checkoutLegalTexts,
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
@@ -263,6 +277,8 @@ export const actions: Actions = {
 						companyVatId,
 						companyEmail,
 						companyPhone,
+						checkoutButtonColor,
+						checkoutLegalTexts,
 						updatedAt: new Date(),
 					},
 				});

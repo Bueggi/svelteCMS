@@ -716,6 +716,103 @@
                             </div>
                         </div>
 
+                        <!-- Checkout-Anpassungen -->
+                        <div class="space-y-6">
+                            <div class="border-b border-white/10 pb-4">
+                                <h2 class="text-xl font-bold">Checkout-Anpassungen</h2>
+                                <p class="text-sm text-muted-foreground">Button-Farbe und rechtliche Pflicht-/Opt-in-Checkboxen im Bestellprozess.</p>
+                            </div>
+
+                            <!-- Button Color -->
+                            <div class="grid gap-2">
+                                <Label for="checkoutButtonColor">Bezahlen-Button Farbe</Label>
+                                <div class="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        id="checkoutButtonColorPicker"
+                                        value={checkoutButtonColorHex || '#000000'}
+                                        oninput={(e) => checkoutButtonColorHex = e.currentTarget.value}
+                                        class="w-10 h-10 rounded cursor-pointer border border-border bg-transparent p-0.5 shrink-0"
+                                    />
+                                    <input
+                                        type="text"
+                                        id="checkoutButtonColor"
+                                        name="checkoutButtonColor"
+                                        bind:value={checkoutButtonColorHex}
+                                        placeholder="#e86a3a (leer = Primärfarbe)"
+                                        class="flex-1 rounded-md border border-input bg-background/50 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                                    />
+                                    {#if checkoutButtonColorHex}
+                                        <button type="button" onclick={() => checkoutButtonColorHex = ''} class="text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded border border-border">Zurücksetzen</button>
+                                    {/if}
+                                </div>
+                                <p class="text-xs text-muted-foreground">Leer lassen = Standard-Primärfarbe des aktiven Themes.</p>
+                            </div>
+
+                            <!-- Legal Checkboxen Array -->
+                            <div class="grid gap-3">
+                                <div class="flex items-center justify-between">
+                                    <Label>Checkboxen im Checkout</Label>
+                                    <button
+                                        type="button"
+                                        onclick={addLegalItem}
+                                        class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                                    >
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                        Checkbox hinzufügen
+                                    </button>
+                                </div>
+
+                                {#if legalItems.length === 0}
+                                    <div class="rounded-lg border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+                                        Noch keine Checkboxen. Klicke „Checkbox hinzufügen".
+                                    </div>
+                                {:else}
+                                    <div class="space-y-2">
+                                        {#each legalItems as item, i}
+                                            <div class="flex gap-2 items-start rounded-lg border border-border/60 bg-card/40 p-3">
+                                                <div class="flex-1 space-y-2">
+                                                    <textarea
+                                                        rows={2}
+                                                        bind:value={item.text}
+                                                        placeholder="Ich bestätige, dass die digitale Leistung sofort erbracht wird…"
+                                                        class="w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                                                    ></textarea>
+                                                    <div class="flex items-center gap-4">
+                                                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                                                            <input
+                                                                type="checkbox"
+                                                                bind:checked={item.required}
+                                                                class="w-4 h-4 accent-primary"
+                                                            />
+                                                            <span class="text-xs font-medium">
+                                                                {#if item.required}
+                                                                    <span class="text-destructive">Pflichtfeld</span> — Kauf ohne Haken nicht möglich
+                                                                {:else}
+                                                                    <span class="text-muted-foreground">Optional</span> — Kauf auch ohne Haken möglich
+                                                                {/if}
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onclick={() => removeLegalItem(i)}
+                                                    class="mt-0.5 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                                    aria-label="Entfernen"
+                                                >
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                {/if}
+                                <!-- Hidden field carries the JSON to the server -->
+                                <input type="hidden" name="checkoutLegalTexts" value={JSON.stringify(legalItems)} />
+                                <p class="text-xs text-muted-foreground">Pflichtfelder müssen angehakt sein bevor der Kauf abgeschlossen werden kann. Optionale Felder sind vorausgefüllt oder können ignoriert werden.</p>
+                            </div>
+                        </div>
+
                     </div>
                     <div class="px-8 py-4 bg-muted/30 border-t border-white/10 flex justify-end">
                         <Button type="submit" disabled={isSaving} class="shadow-lg shadow-primary/20">

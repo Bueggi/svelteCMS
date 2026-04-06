@@ -14,14 +14,19 @@
     let upsells = $derived(data.upsells);
     let user = $derived(data.user);
     let checkoutButtonColor = $derived(data.checkoutButtonColor as string | null);
-    let checkoutLegalTexts = $derived(data.checkoutLegalTexts as string[]);
+
+    type LegalItem = { text: string; required: boolean };
+    const checkoutLegalTexts = $derived(data.checkoutLegalTexts as LegalItem[]);
 
     // Legal checkbox state — one boolean per item
     let legalChecked = $state<boolean[]>([]);
     $effect(() => {
         legalChecked = (checkoutLegalTexts ?? []).map(() => false);
     });
-    let allLegalChecked = $derived(legalChecked.every(v => v));
+    // Only required items must be checked before purchase is allowed
+    let allRequiredChecked = $derived(
+        (checkoutLegalTexts ?? []).every((item, i) => !item.required || legalChecked[i])
+    );
     let defaultVatRate = $derived(data.vatRate ?? 0);
     let reverseChargeEnabled = $derived(data.reverseChargeEnabled ?? false);
     let operatorCountry = $derived(data.operatorCountry ?? 'DE');
@@ -238,7 +243,7 @@
                     selectedMethod: isStripeMethod ? selectedMethod : undefined,
                     reverseCharge: reverseChargeApplies,
                     billingAddress,
-                    legalChecks: checkoutLegalTexts.filter((_, i) => legalChecked[i]),
+                    legalChecks: checkoutLegalTexts.filter((_, i) => legalChecked[i]).map(item => item.text),
                 })
             });
 
@@ -542,14 +547,19 @@
                         <!-- Legal checkboxes -->
                         {#if checkoutLegalTexts.length > 0}
                             <div class="space-y-2">
-                                {#each checkoutLegalTexts as text, i}
-                                    <label class="flex items-start gap-2.5 cursor-pointer">
+                                {#each checkoutLegalTexts as item, i}
+                                    <label class="flex items-start gap-2.5 cursor-pointer group">
                                         <input
                                             type="checkbox"
                                             bind:checked={legalChecked[i]}
                                             class="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
                                         />
-                                        <span class="text-xs text-muted-foreground leading-relaxed">{text}</span>
+                                        <span class="text-xs text-muted-foreground leading-relaxed">
+                                            {item.text}
+                                            {#if !item.required}
+                                                <span class="ml-1 text-[10px] text-muted-foreground/60">(optional)</span>
+                                            {/if}
+                                        </span>
                                     </label>
                                 {/each}
                             </div>
@@ -559,7 +569,7 @@
                             class="w-full"
                             size="lg"
                             onclick={handleCheckout}
-                            disabled={isLoading || !allLegalChecked}
+                            disabled={isLoading || !allRequiredChecked}
                             style={checkoutButtonColor ? `background-color: ${checkoutButtonColor}; border-color: ${checkoutButtonColor};` : ''}
                         >
                             {#if isLoading}

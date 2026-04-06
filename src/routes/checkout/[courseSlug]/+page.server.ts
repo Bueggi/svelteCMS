@@ -48,9 +48,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         getSettings(),
     ]);
 
-    let checkoutLegalTexts: string[] = [];
+    type LegalItem = { text: string; required: boolean };
+    let checkoutLegalTexts: LegalItem[] = [];
     try {
-        checkoutLegalTexts = settings?.checkoutLegalTexts ? JSON.parse(settings.checkoutLegalTexts) : [];
+        const raw = settings?.checkoutLegalTexts ? JSON.parse(settings.checkoutLegalTexts) : [];
+        // backwards compat: plain strings become required items
+        checkoutLegalTexts = (raw as any[]).map(item =>
+            typeof item === 'string' ? { text: item, required: true } : { text: item.text ?? '', required: item.required !== false }
+        );
     } catch { checkoutLegalTexts = []; }
 
     return {

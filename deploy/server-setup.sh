@@ -45,14 +45,34 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 UPLOAD_DIR="/var/www/lumiere/uploads"
 UPLOAD_URL_PREFIX="/uploads"
 PUBLIC_BASE_URL="https://DEINE-DOMAIN.de"
+UPDATE_CHECK_URL="https://raw.githubusercontent.com/Bueggi/svelteCMS/master/latest.json"
 ENVTEMPLATE
     echo ""
     read -p "  .env jetzt anlegen? (enter zum Überspringen, später nachholen)" _
 fi
 
-echo "==> [4/7] start.sh ausführbar machen..."
+echo "==> [4/7] Scripts ausführbar machen..."
 chmod +x $APP_DIR/deploy/start.sh
 chmod +x $APP_DIR/deploy/deploy.sh
+chmod +x $APP_DIR/deploy/self-update.sh
+
+echo "==> [4b/7] Git-Repo für Self-Update einrichten..."
+cd $APP_DIR
+if [ ! -d "$APP_DIR/.git" ]; then
+    git init
+    git remote add origin https://github.com/Bueggi/svelteCMS.git
+    git fetch origin --depth=1
+    git checkout -b master --track origin/master || git checkout master
+    # .env und uploads nie durch git pull überschreiben lassen
+    echo ".env" >> .gitignore
+    echo "uploads/" >> .gitignore
+    echo "update.log" >> .gitignore
+    echo "node_modules/" >> .gitignore
+    echo "build/" >> .gitignore
+    echo "  ✓ Git-Repo eingerichtet (origin = GitHub)"
+else
+    echo "  ✓ Git-Repo bereits vorhanden"
+fi
 
 echo "==> [5/7] Globale Tools installieren (drizzle-kit für db:push)..."
 npm install -g drizzle-kit tsx 2>/dev/null || true

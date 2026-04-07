@@ -45,7 +45,7 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 UPLOAD_DIR="/var/www/lumiere/uploads"
 UPLOAD_URL_PREFIX="/uploads"
 PUBLIC_BASE_URL="https://DEINE-DOMAIN.de"
-UPDATE_CHECK_URL="https://raw.githubusercontent.com/Bueggi/svelteCMS/master/latest.json"
+UPDATE_CHECK_URL="https://gist.githubusercontent.com/Bueggi/c0e4f9ffd43e7f6251758d6f7df81b97/raw/latest.json"
 ENVTEMPLATE
     echo ""
     read -p "  .env jetzt anlegen? (enter zum Überspringen, später nachholen)" _

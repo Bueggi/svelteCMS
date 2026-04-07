@@ -51,12 +51,14 @@ npx drizzle-kit push --config="$APP_DIR/drizzle.config.ts"
 echo "      ✓ Schema synchronisiert"
 
 # 6. Zero-Downtime-Neustart
-echo "[6/6] pm2 reload lumiere..."
-pm2 reload lumiere --update-env && pm2 save
-echo "      ✓ App neu gestartet"
+echo "[6/6] App wird neu gestartet..."
 
+# Completion message BEFORE reload — browser detects it and reloads in 4s
 echo ""
 echo "======================================================"
 echo "  Update abgeschlossen! $OLD_COMMIT → $NEW_COMMIT"
 echo "======================================================"
 echo ""
+
+# Reload after writing completion to log (browser will reload the page)
+pm2 reload lumiere --update-env && pm2 save || true

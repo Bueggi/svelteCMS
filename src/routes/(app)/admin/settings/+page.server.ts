@@ -109,7 +109,7 @@ export const actions: Actions = {
 
 		// Merge per-theme CSS into existing JSON map
 		const cssForActive = (data.get('themeCustomCssForActive') as string) ?? '';
-		const existing = await db.query.siteSettings.findFirst({ columns: { themeCustomCss: true } });
+		const existing = await db.query.siteSettings.findFirst({ columns: { themeCustomCss: true, themeFonts: true } });
 		let cssMap: Record<string, string> = {};
 		try { cssMap = JSON.parse(existing?.themeCustomCss || '{}'); } catch { cssMap = {}; }
 		if (cssForActive.trim()) {
@@ -118,6 +118,18 @@ export const actions: Actions = {
 			delete cssMap[activeTheme];
 		}
 		const themeCustomCss = Object.keys(cssMap).length > 0 ? JSON.stringify(cssMap) : null;
+
+		// Merge per-theme fonts into existing JSON map
+		const fontHeading = (data.get('fontHeading') as string)?.trim() || '';
+		const fontBody    = (data.get('fontBody')    as string)?.trim() || '';
+		let fontsMap: Record<string, { heading: string; body: string }> = {};
+		try { fontsMap = JSON.parse(existing?.themeFonts || '{}'); } catch { fontsMap = {}; }
+		if (fontHeading || fontBody) {
+			fontsMap[activeTheme] = { heading: fontHeading, body: fontBody };
+		} else {
+			delete fontsMap[activeTheme];
+		}
+		const themeFonts = Object.keys(fontsMap).length > 0 ? JSON.stringify(fontsMap) : null;
 
 		try {
 			await db
@@ -140,6 +152,7 @@ export const actions: Actions = {
 					registrationEnabled,
 					siteUrl,
 					themeCustomCss,
+					themeFonts,
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
@@ -161,6 +174,7 @@ export const actions: Actions = {
 						registrationEnabled,
 						siteUrl,
 						themeCustomCss,
+						themeFonts,
 						updatedAt: new Date(),
 					},
 				});

@@ -44,6 +44,24 @@
     }
     const customCss = $derived(parseThemeCss((settings as any)?.themeCustomCss, activeTheme.id));
 
+    // Per-theme fonts
+    type FontPair = { heading: string; body: string };
+    function parseThemeFonts(raw: string | null | undefined, themeId: string): FontPair {
+        try { return (JSON.parse(raw || '{}') as Record<string, FontPair>)[themeId] ?? { heading: '', body: '' }; } catch { return { heading: '', body: '' }; }
+    }
+    const themeFonts = $derived(parseThemeFonts((settings as any)?.themeFonts, activeTheme.id));
+    const fontHeading = $derived(themeFonts.heading || '');
+    const fontBody    = $derived(themeFonts.body    || '');
+
+    // Build Google Fonts URL for active fonts
+    const googleFontsUrl = $derived(() => {
+        const families: string[] = [];
+        if (fontHeading) families.push(fontHeading.replace(/ /g, '+') + ':wght@400;500;600;700');
+        if (fontBody)    families.push(fontBody.replace(/ /g, '+') + ':wght@400;500;600');
+        if (!families.length) return '';
+        return `https://fonts.googleapis.com/css2?${families.map(f => `family=${f}`).join('&')}&display=swap`;
+    })();
+
     function autoFg(hsl: string): string {
         const parts = hsl.trim().split(/[\s,]+/);
         const l = parseFloat(parts[2]);
@@ -62,6 +80,11 @@
     {#if settings?.faviconUrl}
         <link rel="icon" href={settings.faviconUrl} />
     {/if}
+    {#if googleFontsUrl}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+        <link rel="stylesheet" href={googleFontsUrl} />
+    {/if}
     <!-- Inject theme CSS variables into :root so portalled elements (dropdowns, dialogs) also get themed -->
     {@html `<style>:root{
         --radius:${v.radius};
@@ -77,7 +100,11 @@
         --sidebar-primary:${primary};--sidebar-primary-foreground:${primaryFg};
         --sidebar-accent:${v.sidebarAccent};--sidebar-accent-foreground:${v.sidebarAccentForeground};
         --sidebar-border:${v.sidebarBorder};--sidebar-ring:${primary};
-    }</style>`}
+        ${fontHeading ? `--font-heading:'${fontHeading}',serif;` : ''}
+        ${fontBody    ? `--font-body:'${fontBody}',sans-serif;` : ''}
+    }${fontHeading ? `h1,h2,h3,h4,h5,h6{font-family:var(--font-heading);}` : ''}
+    ${fontBody ? `body,p,span,div,input,textarea,select,button{font-family:var(--font-body);}` : ''}
+    </style>`}
     {#if customCss}
         {@html `<style id="theme-custom-css">${customCss}</style>`}
     {/if}

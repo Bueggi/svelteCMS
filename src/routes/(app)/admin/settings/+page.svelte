@@ -98,9 +98,23 @@
         try { themeCustomCssMap = JSON.parse((settings as any)?.themeCustomCss || '{}'); } catch { themeCustomCssMap = {}; }
     });
 
-    // When selectedThemeId changes, load that theme's CSS into the editor
+    // When selectedThemeId changes, load that theme's CSS + fonts into the editor
     $effect(() => {
         currentThemeCss = themeCustomCssMap[selectedThemeId] ?? '';
+    });
+
+    // Per-theme font state
+    type FontPair = { heading: string; body: string };
+    let themeFontsMap = $state<Record<string, FontPair>>({});
+    let currentFontHeading = $state('');
+    let currentFontBody    = $state('');
+
+    $effect(() => {
+        try { themeFontsMap = JSON.parse((settings as any)?.themeFonts || '{}'); } catch { themeFontsMap = {}; }
+    });
+    $effect(() => {
+        currentFontHeading = themeFontsMap[selectedThemeId]?.heading ?? '';
+        currentFontBody    = themeFontsMap[selectedThemeId]?.body    ?? '';
     });
 
     // Live-inject custom CSS while editing (before save)
@@ -1195,6 +1209,88 @@
                                         </button>
                                     {/each}
                                 </div>
+
+                                <!-- Font Selection -->
+                                <input type="hidden" name="fontHeading" value={currentFontHeading} />
+                                <input type="hidden" name="fontBody"    value={currentFontBody}    />
+                                <details class="border border-white/10 rounded-xl overflow-hidden">
+                                    <summary class="cursor-pointer px-6 py-4 text-sm font-medium flex items-center gap-2 hover:bg-muted/30 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h6"/></svg>
+                                        Schriftarten
+                                        <span class="ml-1 text-xs text-muted-foreground">— nur für Theme „{themes.find(t => t.id === selectedThemeId)?.name ?? selectedThemeId}"</span>
+                                        {#if currentFontHeading || currentFontBody}
+                                            <span class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                                Aktiv
+                                            </span>
+                                        {:else}
+                                            <span class="ml-auto text-xs text-muted-foreground">Standard</span>
+                                        {/if}
+                                    </summary>
+                                    <div class="border-t border-white/10 p-5 space-y-5">
+                                        <p class="text-xs text-muted-foreground">Google Fonts — exakter Schriftname eingeben (z.B. „Inter", „Playfair Display", „Lora"). Wird direkt von Google Fonts geladen.</p>
+                                        <div class="grid gap-5 sm:grid-cols-2">
+                                            <!-- Heading font -->
+                                            <div class="space-y-2">
+                                                <label class="text-sm font-medium">Überschriften</label>
+                                                <input
+                                                    type="text"
+                                                    bind:value={currentFontHeading}
+                                                    placeholder="z.B. Playfair Display"
+                                                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                />
+                                                {#if currentFontHeading}
+                                                    <p class="text-xs text-muted-foreground" style="font-family: '{currentFontHeading}', serif;">
+                                                        Vorschau: {currentFontHeading}
+                                                    </p>
+                                                {/if}
+                                            </div>
+                                            <!-- Body font -->
+                                            <div class="space-y-2">
+                                                <label class="text-sm font-medium">Fließtext</label>
+                                                <input
+                                                    type="text"
+                                                    bind:value={currentFontBody}
+                                                    placeholder="z.B. Inter"
+                                                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                />
+                                                {#if currentFontBody}
+                                                    <p class="text-xs text-muted-foreground" style="font-family: '{currentFontBody}', sans-serif;">
+                                                        Vorschau: {currentFontBody}
+                                                    </p>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                        <!-- Popular fonts quick-pick -->
+                                        <div class="space-y-2">
+                                            <p class="text-xs text-muted-foreground font-medium">Schnellauswahl</p>
+                                            <div class="flex flex-wrap gap-2">
+                                                {#each ['Inter', 'DM Sans', 'Nunito', 'Lato', 'Outfit', 'Plus Jakarta Sans'] as f}
+                                                    <button type="button" onclick={() => currentFontBody = f}
+                                                        class="rounded-full border border-border px-3 py-1 text-xs transition hover:border-primary hover:text-primary {currentFontBody === f ? 'border-primary text-primary bg-primary/10' : ''}">
+                                                        {f}
+                                                    </button>
+                                                {/each}
+                                            </div>
+                                            <div class="flex flex-wrap gap-2 mt-1">
+                                                {#each ['Playfair Display', 'Cormorant Garamond', 'Lora', 'DM Serif Display', 'Fraunces', 'Libre Baskerville'] as f}
+                                                    <button type="button" onclick={() => currentFontHeading = f}
+                                                        class="rounded-full border border-border px-3 py-1 text-xs transition hover:border-primary hover:text-primary {currentFontHeading === f ? 'border-primary text-primary bg-primary/10' : ''}">
+                                                        {f}
+                                                    </button>
+                                                {/each}
+                                            </div>
+                                            <p class="text-xs text-muted-foreground">Erste Reihe: Fließtext — Zweite Reihe: Überschriften</p>
+                                        </div>
+                                        {#if currentFontHeading || currentFontBody}
+                                            <button type="button" onclick={() => { currentFontHeading = ''; currentFontBody = ''; }}
+                                                class="text-xs text-muted-foreground hover:text-destructive transition-colors">
+                                                Schriftarten zurücksetzen
+                                            </button>
+                                        {/if}
+                                        <p class="text-xs text-muted-foreground">Wird beim Klick auf „Einstellungen speichern" gespeichert.</p>
+                                    </div>
+                                </details>
 
                                 <!-- Custom CSS Editor -->
                                 <details class="border border-white/10 rounded-xl overflow-hidden">

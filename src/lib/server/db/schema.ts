@@ -106,6 +106,9 @@ export const siteSettings = pgTable('site_settings', {
 
 	// Per-theme custom CSS overrides: JSON Record<themeId, string>
 	themeCustomCss: text('theme_custom_css'),
+
+	// Per-theme font overrides: JSON Record<themeId, {heading: string, body: string}>
+	themeFonts: text('theme_fonts'),
 });
 
 /**

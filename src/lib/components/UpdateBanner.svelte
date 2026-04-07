@@ -6,8 +6,8 @@
 	let dismissed = $state(false);
 	let phase = $state<'idle' | 'starting' | 'running' | 'done' | 'error'>('idle');
 	let currentStep = $state(0);
-	let errorMessage = $state('');
-	let newCommit = $state('');
+	let statusLine = $state('');
+	let errorLines = $state<string[]>([]);
 	let pollInterval: ReturnType<typeof setInterval>;
 
 	const steps = [
@@ -20,8 +20,9 @@
 	];
 
 	function parseLog(text: string) {
-		const lines = text.split('\n');
-		// Find highest completed step number
+		const lines = text.split('\n').filter(Boolean);
+
+		// Find highest step number seen
 		let step = 0;
 		for (const line of lines) {
 			const m = line.match(/^\[(\d+)\/6\]/);
@@ -29,14 +30,11 @@
 		}
 		currentStep = step;
 
-		// Check for new commit
-		const commitLine = lines.find(l => l.includes('→'));
-		if (commitLine) {
-			const m = commitLine.match(/→\s*(\w+)/);
-			if (m) newCommit = m[1];
-		}
+		// Status line: last non-empty line
+		const last = lines[lines.length - 1] ?? '';
+		statusLine = last;
 
-		// Check done
+		// Done check
 		if (lines.some(l => l.includes('Update abgeschlossen'))) {
 			clearInterval(pollInterval);
 			phase = 'done';
@@ -44,11 +42,10 @@
 			return;
 		}
 
-		// Check error
-		const errorLine = lines.find(l => /^(error|fatal|FEHLER)/i.test(l.trim()) && !l.includes('2>/dev/null'));
-		if (errorLine) {
+		// Error check
+		if (lines.some(l => l.startsWith('FEHLER:'))) {
 			clearInterval(pollInterval);
-			errorMessage = errorLine.trim();
+			errorLines = lines;
 			phase = 'error';
 		}
 	}
@@ -129,7 +126,7 @@
 			<div class="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-2xl">
 
 				<!-- Header -->
-				<div class="mb-8 text-center">
+				<div class="mb-6 text-center">
 					{#if phase === 'done'}
 						<CheckCircle2 class="mx-auto mb-3 h-12 w-12 text-green-400" />
 						<h2 class="text-xl font-semibold">Update abgeschlossen!</h2>
@@ -137,7 +134,7 @@
 					{:else if phase === 'error'}
 						<AlertCircle class="mx-auto mb-3 h-12 w-12 text-destructive" />
 						<h2 class="text-xl font-semibold">Update fehlgeschlagen</h2>
-						<p class="mt-1 text-sm text-muted-foreground">{errorMessage || 'Bitte kontaktiere den Support.'}</p>
+						<p class="mt-1 text-sm text-muted-foreground">Fehlerdetails unten — bitte an den Support weitergeben.</p>
 					{:else}
 						<Loader2 class="mx-auto mb-3 h-12 w-12 animate-spin text-amber-400" />
 						<h2 class="text-xl font-semibold">Update wird installiert</h2>
@@ -150,8 +147,7 @@
 					{#each steps as step, i}
 						{@const stepNum = i + 1}
 						{@const done = currentStep > stepNum || phase === 'done'}
-						{@const active = currentStep === stepNum && phase === 'running'}
-						{@const pending = currentStep < stepNum && phase !== 'done'}
+						{@const active = currentStep === stepNum && (phase === 'running' || phase === 'starting')}
 						<li class="flex items-center gap-3">
 							<span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold
 								{done ? 'bg-green-500/20 text-green-400' : active ? 'bg-amber-500/20 text-amber-400' : 'bg-muted text-muted-foreground'}">
@@ -170,10 +166,21 @@
 					{/each}
 				</ol>
 
-				{#if phase === 'error'}
+				<!-- Status line (current activity) -->
+				{#if (phase === 'running' || phase === 'starting') && statusLine}
+					<p class="mt-4 truncate text-center font-mono text-[11px] text-muted-foreground">{statusLine}</p>
+				{/if}
+
+				<!-- Error log -->
+				{#if phase === 'error' && errorLines.length > 0}
+					<div class="mt-4 max-h-40 overflow-y-auto rounded-lg bg-[hsl(0_0%_6%)] p-3 font-mono text-[11px] leading-relaxed">
+						{#each errorLines as line}
+							<div class="{line.startsWith('FEHLER:') || /error/i.test(line) ? 'text-red-400' : line.includes('✓') ? 'text-green-400' : 'text-[hsl(0_0%_70%)]'}">{line}</div>
+						{/each}
+					</div>
 					<button
-						onclick={() => { phase = 'idle'; }}
-						class="mt-6 w-full rounded-md border border-border py-2 text-sm text-muted-foreground transition hover:text-foreground"
+						onclick={() => { phase = 'idle'; errorLines = []; }}
+						class="mt-4 w-full rounded-md border border-border py-2 text-sm text-muted-foreground transition hover:text-foreground"
 					>
 						Schließen
 					</button>

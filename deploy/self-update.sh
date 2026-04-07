@@ -30,9 +30,9 @@ git pull origin master --ff-only
 NEW_COMMIT=$(git rev-parse --short HEAD)
 echo "      ✓ Neuer Stand: $NEW_COMMIT"
 
-# 3. Dependencies aktualisieren
-echo "[3/6] npm ci --omit=dev..."
-npm ci --omit=dev --prefer-offline --silent
+# 3. Dependencies aktualisieren (inkl. devDeps für den Build)
+echo "[3/6] npm ci..."
+npm ci --prefer-offline --silent
 npm rebuild sharp --silent 2>/dev/null || true
 echo "      ✓ Dependencies aktualisiert"
 
@@ -40,6 +40,9 @@ echo "      ✓ Dependencies aktualisiert"
 echo "[4/6] npm run build..."
 npm run build
 echo "      ✓ Build erfolgreich"
+
+# 4b. Dev-Dependencies nach dem Build entfernen
+npm prune --omit=dev --silent 2>/dev/null || true
 
 # 5. Schema-Sync
 echo "[5/6] drizzle-kit push..."

@@ -25,6 +25,7 @@ echo "[1/6] Aktueller Stand: $OLD_COMMIT"
 
 # 2. Neuesten Stand vom Remote holen
 echo "[2/6] git pull origin master..."
+git reset --hard HEAD
 git pull origin master --ff-only
 NEW_COMMIT=$(git rev-parse --short HEAD)
 echo "      ✓ Neuer Stand: $NEW_COMMIT"

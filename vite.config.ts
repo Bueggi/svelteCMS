@@ -1,4 +1,3 @@
-import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
@@ -18,7 +17,7 @@ export default defineConfig({
 	define: {
 		__GIT_COMMIT__: JSON.stringify(getGitCommit()),
 	},
-	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
+	plugins: [tailwindcss(), sveltekit()],
 	server: {
 		fs: {
 			// Allow Vite to serve files from the uploads directory in dev

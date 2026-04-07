@@ -32,7 +32,7 @@ echo "      ✓ Neuer Stand: $NEW_COMMIT"
 
 # 3. Dependencies aktualisieren (inkl. devDeps für den Build)
 echo "[3/6] npm ci..."
-npm ci --prefer-offline --silent
+npm ci --silent
 npm rebuild sharp --silent 2>/dev/null || true
 echo "      ✓ Dependencies aktualisiert"
 

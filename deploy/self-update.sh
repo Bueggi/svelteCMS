@@ -10,7 +10,7 @@ set -e
 APP_DIR=/var/www/lumiere
 LOG="$APP_DIR/update.log"
 
-exec > >(tee -a "$LOG") 2>&1
+exec > >(tee "$LOG") 2>&1
 
 echo ""
 echo "======================================================"

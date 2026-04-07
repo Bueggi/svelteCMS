@@ -15,6 +15,11 @@ export const POST: RequestHandler = async ({ locals }) => {
 	const scriptPath = resolve(process.cwd(), 'deploy/self-update.sh');
 
 	try {
+		// Clear log before starting so UI only shows current attempt
+		const { writeFileSync } = await import('fs');
+		const logPath = resolve(process.cwd(), 'update.log');
+		writeFileSync(logPath, '');
+
 		const child = spawn('bash', [scriptPath], {
 			detached: true,
 			stdio: 'ignore',

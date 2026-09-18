@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770633652056,
-      "tag": "0000_green_inhumans",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1771102011350,
-      "tag": "0001_gifted_purifiers",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1771193990497,
-      "tag": "0002_lonely_quasimodo",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1773491187482,
-      "tag": "0003_naive_tarot",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1773867669981,
-      "tag": "0004_superb_reavers",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1773870248328,
-      "tag": "0005_careful_chamber",
+      "when": 1789759626458,
+      "tag": "0000_baseline",
       "breakpoints": true
     }
   ]

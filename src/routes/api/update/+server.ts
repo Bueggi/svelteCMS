@@ -12,6 +12,14 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ locals }) => {
 	if (locals.user?.role !== 'admin') throw error(403);
 
+	// Containers have no git/pm2 to run the script; updating means pulling a new image
+	if (process.env.DEPLOY_MODE === 'docker') {
+		return new Response(
+			JSON.stringify({ ok: false, error: 'Docker-Installation: bitte auf dem Server "docker compose pull && docker compose up -d" ausführen.' }),
+			{ status: 409, headers: { 'Content-Type': 'application/json' } }
+		);
+	}
+
 	const scriptPath = resolve(process.cwd(), 'deploy/self-update.sh');
 
 	try {

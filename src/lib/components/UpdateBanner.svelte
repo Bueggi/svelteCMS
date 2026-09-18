@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { RefreshCw, CheckCircle2, AlertCircle, Loader2 } from 'lucide-svelte';
 
-	let { version, summary }: { version: string; summary: string } = $props();
+	// docker: no in-app update button, the update is a `docker compose pull` on the server
+	let { version, summary, docker = false }: { version: string; summary: string; docker?: boolean } = $props();
 
 	let dismissed = $state(false);
+	let errorMessage = $state('');
 	let phase = $state<'idle' | 'starting' | 'running' | 'done' | 'error'>('idle');
 	let currentStep = $state(0);
 	let statusLine = $state('');
@@ -95,12 +97,19 @@
 			</div>
 			<div class="flex items-center gap-2">
 				{#if phase === 'idle'}
-					<button
-						onclick={applyUpdate}
-						class="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-400"
-					>
-						Jetzt updaten
-					</button>
+					{#if docker}
+						<span class="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+							Auf dem Server:
+							<code class="rounded bg-muted px-2 py-1 font-mono text-[11px] text-foreground">docker compose pull &amp;&amp; docker compose up -d</code>
+						</span>
+					{:else}
+						<button
+							onclick={applyUpdate}
+							class="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-400"
+						>
+							Jetzt updaten
+						</button>
+					{/if}
 					<button
 						onclick={() => { dismissed = true; }}
 						class="text-muted-foreground hover:text-foreground transition-colors"

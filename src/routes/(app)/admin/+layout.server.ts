@@ -65,5 +65,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	const updateInfo = await getUpdateInfo();
 	const gitCommit = typeof __GIT_COMMIT__ !== 'undefined' ? __GIT_COMMIT__ : 'unknown';
 
-	return { user, updateInfo, gitCommit };
+	const isDocker = process.env.DEPLOY_MODE === 'docker';
+
+	return { user, updateInfo, gitCommit, isDocker };
 };

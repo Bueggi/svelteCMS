@@ -24,7 +24,7 @@
 </script>
 
 {#if data.updateInfo}
-    <UpdateBanner version={data.updateInfo.version} summary={data.updateInfo.summary} />
+    <UpdateBanner version={data.updateInfo.version} summary={data.updateInfo.summary} docker={data.isDocker} />
 {/if}
 
 <div class="max-w-7xl mx-auto animate-in fade-in duration-500">

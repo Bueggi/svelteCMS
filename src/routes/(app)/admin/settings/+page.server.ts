@@ -3,7 +3,7 @@ import { db } from '$lib/server/db';
 import { siteSettings } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { invalidateSettings, getEnvVarStatus } from '$lib/server/settings';
-import { env } from '$env/dynamic/private';
+import { getDatabaseUrl } from '$lib/server/config';
 import type { PageServerLoad, Actions } from './$types';
 
 function maskDbUrl(raw: string | undefined): string {
@@ -79,7 +79,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		settings,
 		envVars,
-		dbUrl: maskDbUrl(env.DATABASE_URL),
+		dbUrl: maskDbUrl(getDatabaseUrl()),
 		dbOk,
 		dbError,
 		nodeEnv: process.env.NODE_ENV ?? 'production',

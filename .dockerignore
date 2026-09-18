@@ -6,3 +6,4 @@ build
 .git
 uploads
 deploy
+data

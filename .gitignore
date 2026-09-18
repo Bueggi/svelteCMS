@@ -29,3 +29,6 @@ svelte_check.txt
 # User uploads (runtime-generated, not part of the repo)
 /uploads/*
 !/uploads/.gitkeep
+
+# Runtime config written by the setup wizard (contains the DB password)
+/data/

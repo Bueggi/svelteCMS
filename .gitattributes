@@ -1,0 +1,5 @@
+# Scripts and container files must keep LF line endings — CRLF breaks them on Linux
+# (e.g. `bash\r: command not found`). Windows checkouts would otherwise get CRLF via core.autocrlf.
+*.sh text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf

@@ -54,13 +54,13 @@
     const fontBody    = $derived(themeFonts.body    || '');
 
     // Build Google Fonts URL for active fonts
-    const googleFontsUrl = $derived(() => {
+    const googleFontsUrl = $derived.by(() => {
         const families: string[] = [];
         if (fontHeading) families.push(fontHeading.replace(/ /g, '+') + ':wght@400;500;600;700');
         if (fontBody)    families.push(fontBody.replace(/ /g, '+') + ':wght@400;500;600');
         if (!families.length) return '';
         return `https://fonts.googleapis.com/css2?${families.map(f => `family=${f}`).join('&')}&display=swap`;
-    })();
+    });
 
     function autoFg(hsl: string): string {
         const parts = hsl.trim().split(/[\s,]+/);

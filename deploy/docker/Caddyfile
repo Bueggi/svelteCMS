@@ -1,0 +1,23 @@
+# LUMIÈRE — Caddy reverse proxy. {$DOMAIN} comes from the environment (.env).
+# Caddy obtains and renews the Let's Encrypt certificate automatically;
+# the domain's DNS A record must point to this server and ports 80/443 must be reachable.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# User uploads are written by the app into a shared volume and served from disk
+	handle /uploads/* {
+		root * /srv
+		header Cache-Control "public, max-age=2592000, immutable"
+		file_server
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
+}

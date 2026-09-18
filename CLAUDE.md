@@ -50,6 +50,13 @@ Drizzle ORM + PostgreSQL. Schema in `src/lib/server/db/schema.ts`. The Drizzle c
 
 The `drizzle/` folder is a single baseline migration generated from `schema.ts`; the wizard applies it with `migrate()`. Schema changes now need `npm run db:generate` (a schema change without a migration means fresh installs miss it). `drizzle-kit push` remains fine for local iteration.
 
+### Deployment
+Two supported paths:
+- **Docker** (`deploy/docker/`, recommended for customers): `install.sh` sets up Docker, generates `.env` (domain, DB password, auth secret, setup token) and starts app + PostgreSQL + Caddy (automatic HTTPS, serves `/uploads` from the shared volume). The image is built by `.github/workflows/docker.yml` and published to `ghcr.io/bueggi/sveltecms`. The container runs `scripts/migrate.js` before the app (it also reads `data/config.json`, skips databases created via `db:push`). `DEPLOY_MODE=docker` turns the admin "update now" button into a `docker compose pull` hint.
+- **PM2 + nginx** (`deploy/README.md`): `deploy.sh` / `self-update.sh`, in-app updater over git.
+
+adapter-node needs `BODY_SIZE_LIMIT` (default 512 KB is below the 8 MB image upload cap) and, behind a TLS proxy, `ORIGIN` (otherwise SvelteKit rejects form posts as cross-site).
+
 ### Payments
 Stripe integration: checkout session creation at `api/stripe/checkout/+server.ts`, webhook handler at `api/stripe/webhook/+server.ts`. Commerce entities: `purchases`, `coupons`, `upsells` (order bumps). Coupons support percentage or fixed-amount discounts, either globally or per-course.
 

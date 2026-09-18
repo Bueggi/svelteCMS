@@ -1,0 +1,66 @@
+# LUMIÈRE — production stack: app + PostgreSQL + Caddy (automatic HTTPS)
+#
+# Values come from the .env file next to this one (deploy/docker/install.sh generates it):
+#   DOMAIN, POSTGRES_PASSWORD, BETTER_AUTH_SECRET, SETUP_TOKEN
+# Any extra variable you add to .env (SMTP_*, GITHUB_CLIENT_ID, …) is passed on to the app.
+name: lumiere
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lumiere
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD missing - run install.sh first}
+      POSTGRES_DB: lumiere
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumiere -d lumiere"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    # Built and published by .github/workflows/docker.yml
+    image: ghcr.io/bueggi/sveltecms:${LUMIERE_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://lumiere:${POSTGRES_PASSWORD}@db:5432/lumiere
+      # The app sits behind Caddy (TLS). Without ORIGIN, SvelteKit rejects form posts as cross-site.
+      ORIGIN: https://${DOMAIN:?DOMAIN missing - run install.sh first}
+      BETTER_AUTH_URL: https://${DOMAIN}
+      PUBLIC_BASE_URL: https://${DOMAIN}
+      UPDATE_CHECK_URL: ${UPDATE_CHECK_URL:-https://gist.githubusercontent.com/Bueggi/c0e4f9ffd43e7f6251758d6f7df81b97/raw/latest.json}
+    volumes:
+      - uploads:/app/uploads
+      - appdata:/app/data
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Caddy serves uploaded files straight from disk (adapter-node does not serve runtime files)
+      - uploads:/srv/uploads:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  uploads:
+  appdata:
+  caddy_data:
+  caddy_config:

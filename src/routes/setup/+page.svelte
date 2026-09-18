@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Check, Sparkles, Building2, CreditCard, Mail, ArrowRight, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-svelte';
+	import { Check, Sparkles, Building2, CreditCard, Mail, ArrowRight, Eye, EyeOff, CheckCircle2, XCircle, Database, KeyRound } from 'lucide-svelte';
 	import { getT, langNames, supportedLangs, type LangKey } from '$lib/i18n';
 
 	let { data, form } = $props();
@@ -9,13 +9,16 @@
 	let showPassword = $state(false);
 	let showStripeSecret = $state(false);
 	let showSmtpPass = $state(false);
+	let showDbUrl = $state(false);
 
 	// Language for the wizard — reactive, driven by dropdown on step 1.
 	// Not yet saved to DB, so we manage it locally.
 	let wizardLang = $state<LangKey>(data.defaultLanguage ?? 'de');
 	const t = $derived(getT(wizardLang));
 
+	// The database step (0) only exists when DATABASE_URL isn't provided by the environment
 	const steps = $derived([
+		...(data.showDbStep ? [{ number: 0, label: t('setupStepDb'), icon: Database }] : []),
 		{ number: 1, label: t('setupStepApp'),    icon: Building2 },
 		{ number: 2, label: t('setupStepAdmin'),  icon: Sparkles },
 		{ number: 3, label: t('setupStepStripe'), icon: CreditCard },
@@ -45,6 +48,7 @@
 		</div>
 
 		<!-- Step indicator -->
+		{#if !data.locked}
 		<div class="flex items-center justify-center gap-0 mb-8">
 			{#each steps as s, i}
 				<div class="flex items-center">
@@ -60,7 +64,7 @@
 							{#if s.number < step}
 								<Check class="w-4 h-4" />
 							{:else}
-								{s.number}
+								{i + 1}
 							{/if}
 						</div>
 						<span class="text-xs {s.number === step ? 'text-primary font-medium' : 'text-muted-foreground'}">
@@ -77,6 +81,8 @@
 			{/each}
 		</div>
 
+		{/if}
+
 		<!-- Card -->
 		<div class="bg-card border border-border/60 rounded-2xl shadow-xl shadow-black/5 overflow-hidden">
 			<!-- Error -->
@@ -88,8 +94,112 @@
 				</div>
 			{/if}
 
-			<!-- ── Step 1: Platform + Language ────────────────────────── -->
-			{#if step === 1}
+			<!-- ── Token gate, database (step 0), then step 1: Platform + Language ────────────────────────── -->
+			{#if data.locked}
+				<form
+					method="POST"
+					action="?/unlock"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ update }) => {
+							await update();
+							isSubmitting = false;
+						};
+					}}
+				>
+					<div class="px-8 pt-8 pb-6 space-y-6">
+						<div class="flex items-start gap-3">
+							<div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+								<KeyRound class="w-5 h-5 text-primary" />
+							</div>
+							<div>
+								<h2 class="text-xl font-semibold text-foreground">{t('setupTokenTitle')}</h2>
+								<p class="text-sm text-muted-foreground mt-1">{t('setupTokenDesc')}</p>
+							</div>
+						</div>
+
+						<div class="space-y-2">
+							<label for="token" class="text-sm font-medium text-foreground">{t('setupTokenLabel')} *</label>
+							<input
+								id="token"
+								name="token"
+								type="password"
+								required
+								autocomplete="off"
+								spellcheck="false"
+								class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+							/>
+						</div>
+					</div>
+
+					<div class="px-8 py-4 bg-muted/30 border-t border-border/50 flex justify-end">
+						<button
+							type="submit"
+							disabled={isSubmitting}
+							class="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm shadow-primary/20"
+						>
+							{t('setupTokenSubmit')}
+							<ArrowRight class="w-4 h-4" />
+						</button>
+					</div>
+				</form>
+
+			{:else if step === 0}
+				<form
+					method="POST"
+					action="?/stepDb"
+					use:enhance={() => {
+						isSubmitting = true;
+						return async ({ update }) => {
+							await update();
+							isSubmitting = false;
+						};
+					}}
+				>
+					<div class="px-8 pt-8 pb-6 space-y-6">
+						<div>
+							<h2 class="text-xl font-semibold text-foreground">{t('setupStepDbTitle')}</h2>
+							<p class="text-sm text-muted-foreground mt-1">{t('setupStepDbDesc')}</p>
+						</div>
+
+						<div class="space-y-2">
+							<label for="databaseUrl" class="text-sm font-medium text-foreground">{t('setupDbUrlLabel')} *</label>
+							<div class="relative">
+								<input
+									id="databaseUrl"
+									name="databaseUrl"
+									type={showDbUrl ? 'text' : 'password'}
+									required
+									autocomplete="off"
+									spellcheck="false"
+									placeholder="postgres://user:password@host:5432/database"
+									class="w-full rounded-lg border border-input bg-background px-3 py-2.5 pr-10 text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+								/>
+								<button
+									type="button"
+									onclick={() => (showDbUrl = !showDbUrl)}
+									class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+								>
+									{#if showDbUrl}<EyeOff class="w-4 h-4" />{:else}<Eye class="w-4 h-4" />{/if}
+								</button>
+							</div>
+							<p class="text-xs text-muted-foreground">{t('setupDbUrlHint')}</p>
+						</div>
+					</div>
+
+					<div class="px-8 py-4 bg-muted/30 border-t border-border/50 flex justify-end">
+						<button
+							type="submit"
+							disabled={isSubmitting}
+							class="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm shadow-primary/20"
+						>
+							{isSubmitting ? t('setupDbConnecting') : t('setupDbSubmit')}
+							<ArrowRight class="w-4 h-4" />
+						</button>
+					</div>
+				</form>
+
+			{:else if step === 1}
 				<form
 					method="POST"
 					action="?/step1"
@@ -143,7 +253,11 @@
 							<code class="block text-[11px] font-mono text-muted-foreground break-all">{data.dbUrl}</code>
 							{#if data.dbError && !data.dbOk}
 								<p class="text-xs text-destructive">{data.dbError}</p>
-								<p class="text-xs text-muted-foreground">{t('setupDbEnvHint')}</p>
+								{#if data.showDbStep}
+									<a href="/setup?step=0" class="text-xs text-primary hover:underline">{t('setupDbChange')}</a>
+								{:else}
+									<p class="text-xs text-muted-foreground">{t('setupDbEnvHint')}</p>
+								{/if}
 							{/if}
 						</div>
 

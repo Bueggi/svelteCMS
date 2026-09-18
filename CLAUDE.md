@@ -45,6 +45,11 @@ Better Auth (`src/lib/server/auth.ts`) with Drizzle adapter. Session injected in
 ### Database
 Drizzle ORM + PostgreSQL. Schema in `src/lib/server/db/schema.ts`. The Drizzle client is a singleton in `src/lib/server/db/index.ts` to prevent multiple connections in dev. Use `npm run db:push` for quick schema iteration during development; use `db:generate` + `db:migrate` for production migrations.
 
+### First-run setup (no `.env` required)
+`DATABASE_URL` and `BETTER_AUTH_SECRET` may come from the environment **or** from `data/config.json` (path via `CONFIG_FILE`), which the `/setup` wizard writes (step 0: connection string → connection test → schema creation on an empty DB → generated auth secret). Env vars always win; `src/lib/server/config.ts` is the single reader. `db` and `auth` are lazy proxies so the app boots without a database. The wizard is locked behind a setup token (`src/lib/server/setup-token.ts`, printed to the server log, or pinned via `SETUP_TOKEN`) and every wizard action calls `assertSetupOpen` — actions run without `load`, so guard them there, not only in `load`.
+
+The `drizzle/` folder is a single baseline migration generated from `schema.ts`; the wizard applies it with `migrate()`. Schema changes now need `npm run db:generate` (a schema change without a migration means fresh installs miss it). `drizzle-kit push` remains fine for local iteration.
+
 ### Payments
 Stripe integration: checkout session creation at `api/stripe/checkout/+server.ts`, webhook handler at `api/stripe/webhook/+server.ts`. Commerce entities: `purchases`, `coupons`, `upsells` (order bumps). Coupons support percentage or fixed-amount discounts, either globally or per-course.
 

@@ -6,6 +6,8 @@ declare global {
 		interface Locals {
 			user: import("better-auth").User | null;
 			session: import("better-auth").Session | null;
+			/** True once the visitor entered the setup token (always true in dev). */
+			setupUnlocked: boolean;
 		}
 		// interface PageData {}
 		// interface PageState {}

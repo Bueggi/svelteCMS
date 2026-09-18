@@ -76,7 +76,11 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 UPLOAD_DIR="/var/www/lumiere/uploads"
 UPLOAD_URL_PREFIX="/uploads"
 PUBLIC_BASE_URL="https://deine-domain.de"
+BODY_SIZE_LIMIT="12M"
 ```
+
+> **`BODY_SIZE_LIMIT` ist Pflicht für Bild-Uploads.** Der Node-Adapter lehnt Requests über 512 KB sonst mit `413 Payload Too Large` ab,
+> die App erlaubt aber Bilder bis 8 MB.
 
 > **`PUBLIC_BASE_URL` ist Pflicht.** Ohne diesen Wert landet der Käufer nach
 > der Stripe-Zahlung auf `localhost:5173`. Alternativ im Admin-Panel unter

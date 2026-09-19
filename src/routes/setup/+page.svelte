@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Check, Sparkles, Building2, CreditCard, Mail, ArrowRight, Eye, EyeOff, CheckCircle2, XCircle, Database, KeyRound } from 'lucide-svelte';
+	import { Check, Sparkles, Building2, CreditCard, Mail, ArrowRight, Eye, EyeOff, CheckCircle2, XCircle, Database, KeyRound, Copy } from 'lucide-svelte';
 	import { getT, langNames, supportedLangs, type LangKey } from '$lib/i18n';
 
 	let { data, form } = $props();
@@ -10,6 +10,17 @@
 	let showStripeSecret = $state(false);
 	let showSmtpPass = $state(false);
 	let showDbUrl = $state(false);
+	let webhookCopied = $state(false);
+
+	async function copyWebhookUrl() {
+		try {
+			await navigator.clipboard.writeText(data.webhookUrl);
+			webhookCopied = true;
+			setTimeout(() => (webhookCopied = false), 2000);
+		} catch {
+			// Clipboard needs https/localhost; the URL stays selectable in the read-only field
+		}
+	}
 
 	// Language for the wizard — reactive, driven by dropdown on step 1.
 	// Not yet saved to DB, so we manage it locally.
@@ -414,6 +425,28 @@
 								placeholder="pk_live_..."
 								class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
 							/>
+						</div>
+
+						<div class="space-y-2">
+							<label for="webhookUrl" class="text-sm font-medium text-foreground">{t('setupWebhookUrlLabel')}</label>
+							<div class="flex gap-2">
+								<input
+									id="webhookUrl"
+									type="text"
+									readonly
+									value={data.webhookUrl}
+									onfocus={(e) => e.currentTarget.select()}
+									class="min-w-0 flex-1 rounded-lg border border-input bg-muted/40 px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+								/>
+								<button
+									type="button"
+									onclick={copyWebhookUrl}
+									class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-input px-3 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+								>
+									{#if webhookCopied}<Check class="w-4 h-4 text-green-600" />{t('setupCopied')}{:else}<Copy class="w-4 h-4" />{t('setupCopy')}{/if}
+								</button>
+							</div>
+							<p class="text-xs text-muted-foreground">{t('setupWebhookUrlHint')}</p>
 						</div>
 
 						<div class="space-y-2">

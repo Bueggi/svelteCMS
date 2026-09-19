@@ -21,7 +21,7 @@
 
     async function handleRegister() {
         if (!name || !email || !password || !confirmPassword) {
-            error = t('registerErrRequired') || t('loginErrRequired');
+            error = t('loginErrRequired');
             return;
         }
 

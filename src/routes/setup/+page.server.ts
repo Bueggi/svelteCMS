@@ -68,6 +68,7 @@ export const load: PageServerLoad = async ({ url, request, locals }) => {
 		dbUrl: '',
 		dbOk: false,
 		dbError: null as string | null,
+		webhookUrl: '',
 	};
 
 	const dbConfigured = isDatabaseConfigured();
@@ -126,6 +127,8 @@ export const load: PageServerLoad = async ({ url, request, locals }) => {
 		dbUrl: maskDbUrl(getDatabaseUrl()),
 		dbOk,
 		dbError,
+		// Behind the proxy, ORIGIN makes this the public https URL Stripe has to call
+		webhookUrl: `${url.origin}/api/stripe/webhook`,
 	};
 };
 

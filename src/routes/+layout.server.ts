@@ -3,7 +3,8 @@ import * as schema from '$lib/server/db/schema';
 import { auth } from '$lib/server/auth';
 import { isDatabaseConfigured } from '$lib/server/config';
 
-const defaultSettings = {
+// Partial: the fallback only has the theme basics, the DB row has more (appName, logoUrl, ...)
+const defaultSettings: Partial<typeof schema.siteSettings.$inferSelect> = {
     primaryColor: "15 60% 65%",
     secondaryColor: "38 70% 55%",
     accentColor: "15 60% 65%",

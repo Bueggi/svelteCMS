@@ -10,6 +10,7 @@ import { enrollmentConfirmEmail, refundConfirmEmail } from '$lib/server/email/te
 import { fireAutomations } from '$lib/server/automations';
 import { createInvoiceFromCheckout, createInvoiceFromSubscriptionPayment, voidInvoicesForPurchase } from '$lib/server/invoices';
 import { auth } from '$lib/server/auth';
+import { env } from '$env/dynamic/private';
 
 export const POST: RequestHandler = async ({ request }) => {
     const signature = request.headers.get('stripe-signature');
@@ -65,9 +66,9 @@ export const POST: RequestHandler = async ({ request }) => {
                         });
                         // Send password-setup email so the new user can log in
                         try {
-                            await auth.api.forgetPassword({
-                                body: { email, redirectTo: '/dashboard' },
-                                headers: new Headers({ 'content-type': 'application/json' }),
+                            const baseUrl = env.BETTER_AUTH_URL || 'http://localhost:5173';
+                            await auth.api.requestPasswordReset({
+                                body: { email, redirectTo: `${baseUrl}/reset-password` },
                             });
                         } catch (emailErr) {
                             console.error('Failed to send password setup email:', emailErr);

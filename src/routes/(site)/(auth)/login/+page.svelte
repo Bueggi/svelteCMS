@@ -87,6 +87,10 @@
                 </div>
             </div>
 
+            <div class="flex justify-end -mt-1">
+                <a href="/forgot-password" class="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors">{t('forgotLink')}</a>
+            </div>
+
             <button
                 type="submit"
                 disabled={isLoading}

@@ -4,7 +4,8 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			user: import("better-auth").User | null;
+			// Inferred from the auth config so the additional `role` field is included
+			user: typeof import("$lib/server/auth").auth.$Infer.Session.user | null;
 			session: import("better-auth").Session | null;
 			/** True once the visitor entered the setup token (always true in dev). */
 			setupUnlocked: boolean;

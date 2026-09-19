@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // If admin/instructor, fetch ALL courses with community enabled
     let accessibleCourses = [];
-    if (['admin', 'instructor', 'moderator'].includes(locals.user.role)) {
+    if (['admin', 'instructor', 'moderator'].includes(locals.user.role ?? '')) {
         accessibleCourses = await db.query.courses.findMany({
             where: eq(courses.communityEnabled, true),
             orderBy: [desc(courses.createdAt)]

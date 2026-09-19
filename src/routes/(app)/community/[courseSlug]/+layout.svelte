@@ -43,7 +43,7 @@
 
             <div class="pt-4 pb-2 px-2 flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider group">
                 {t('communityChannels')}
-                {#if ['admin', 'instructor', 'moderator'].includes(data.user?.role)}
+                {#if ['admin', 'instructor', 'moderator'].includes(data.user?.role ?? '')}
                      <Dialog>
                         <DialogTrigger>
                             {#snippet child({ props })}

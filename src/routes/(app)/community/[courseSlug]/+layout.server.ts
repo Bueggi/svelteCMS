@@ -26,7 +26,7 @@ export const load: LayoutServerLoad = async ({ params, locals, parent }) => {
     }
 
     // Check enrollment if not admin/instructor/moderator
-    if (!['admin', 'instructor', 'moderator'].includes(locals.user.role)) {
+    if (!['admin', 'instructor', 'moderator'].includes(locals.user.role ?? '')) {
         const enrollment = await db.query.enrollments.findFirst({
             where: and(
                 eq(enrollments.userId, locals.user.id),

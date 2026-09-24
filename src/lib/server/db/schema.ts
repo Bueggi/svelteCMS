@@ -20,14 +20,25 @@ export const inboundWebhookActionEnum = pgEnum('inbound_webhook_action', [
 ]);
 export const lessonTypeEnum = pgEnum('lesson_type', ['video', 'text', 'quiz']);
 export const languageEnum = pgEnum('language', ['de', 'en', 'es', 'fr']);
-export const purchaseStatusEnum = pgEnum('purchase_status', ['completed', 'refunded', 'disputed']);
+export const purchaseStatusEnum = pgEnum('purchase_status', ['completed', 'refunded', 'disputed', 'failed']);
 export const courseAccessTypeEnum = pgEnum('course_access_type', ['lifetime', 'duration', 'subscription']);
-export const enrollmentStatusEnum = pgEnum('enrollment_status', ['active', 'expired', 'cancelled']);
+// suspended = a subscription/installment payment failed; restored automatically once Stripe collects it
+export const enrollmentStatusEnum = pgEnum('enrollment_status', ['active', 'expired', 'cancelled', 'suspended']);
 export const subscriptionIntervalEnum = pgEnum('subscription_interval', ['month', 'year']);
 export const couponDiscountTypeEnum = pgEnum('coupon_discount_type', ['percentage', 'amount']);
 export const couponApplicableToEnum = pgEnum('coupon_applicable_to', ['all', 'specific']);
 export const invoiceStatusEnum = pgEnum('invoice_status', ['issued', 'paid', 'void', 'refunded']);
 export const invoiceTypeEnum = pgEnum('invoice_type', ['one_time', 'subscription', 'installment']);
+// invoice = regular invoice; correction = Rechnungskorrektur/Storno (negative amounts, references the original)
+export const invoiceKindEnum = pgEnum('invoice_kind', ['invoice', 'correction']);
+// How VAT was determined — drives the legal note on the invoice and the DATEV revenue account
+export const taxTreatmentEnum = pgEnum('tax_treatment', [
+	'standard',        // domestic VAT (operator's rate)
+	'oss',             // EU consumer, destination-country rate (One-Stop-Shop)
+	'reverse_charge',  // EU business with VAT ID, § 13b UStG / Art. 196 MwStSystRL
+	'third_country',   // customer outside the EU — not taxable in Germany
+	'small_business',  // Kleinunternehmer, § 19 UStG
+]);
 
 /**
  * Site Configuration & Theming
@@ -72,6 +83,7 @@ export const siteSettings = pgTable('site_settings', {
 	paypalClientId: text('paypal_client_id'),
 	paypalClientSecret: text('paypal_client_secret'),
 	paypalSandbox: boolean('paypal_sandbox').notNull().default(true),
+	paypalWebhookId: text('paypal_webhook_id'), // for verifying webhook signatures (refunds, disputes)
 	enabledPaymentMethods: text('enabled_payment_methods').notNull().default('["card"]'),
 
 	// Tax & Invoice
@@ -85,6 +97,21 @@ export const siteSettings = pgTable('site_settings', {
 	companyZip: text('company_zip'),
 	companyCountry: text('company_country').default('DE'),
 	companyVatId: text('company_vat_id'),    // e.g. DE123456789
+	companyTaxNumber: text('company_tax_number'), // Steuernummer (alternative to the VAT ID on invoices)
+	companyManagingDirector: text('company_managing_director'),
+	companyRegister: text('company_register'),     // e.g. "Amtsgericht Berlin HRB 12345"
+
+	// Tax regime
+	smallBusiness: boolean('small_business').notNull().default(false), // Kleinunternehmer § 19 UStG
+	ossEnabled: boolean('oss_enabled').notNull().default(false),       // charge EU consumers the destination-country rate
+
+	// DATEV export
+	datevConsultantNumber: text('datev_consultant_number'), // Beraternummer
+	datevClientNumber: text('datev_client_number'),         // Mandantennummer
+	datevChartOfAccounts: text('datev_chart_of_accounts').notNull().default('SKR03'), // SKR03 | SKR04
+	datevAccountLength: integer('datev_account_length').notNull().default(4),        // Sachkontenlänge
+	datevFiscalYearStartMonth: integer('datev_fiscal_year_start_month').notNull().default(1),
+	datevAccounts: text('datev_accounts'), // JSON: overrides of the default account mapping
 	companyEmail: text('company_email'),
 	companyPhone: text('company_phone'),
 
@@ -206,6 +233,10 @@ export const courses = pgTable('courses', {
 	checkoutMode: text('checkout_mode').notNull().default('separate'),
 	communityEnabled: boolean('community_enabled').notNull().default(true),
 	trialDays: integer('trial_days'),
+	// Installment plan (alternative to paying `price` at once): installmentCount monthly rates of installmentAmount cents
+	installmentsEnabled: boolean('installments_enabled').notNull().default(false),
+	installmentCount: integer('installment_count'),
+	installmentAmount: integer('installment_amount'), // in cents, per rate
 });
 
 export const course_moderators = pgTable('course_moderators', {
@@ -260,6 +291,9 @@ export const enrollments = pgTable('enrollments', {
 	stripeSubscriptionId: text('stripe_subscription_id'),
 	currentPeriodEnd: timestamp('current_period_end'),
 	cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+	// Set when bought on an installment plan (null = not an installment purchase)
+	installmentsTotal: integer('installments_total'),
+	installmentsPaid: integer('installments_paid').notNull().default(0),
 }, (t) => ({
 	pk: primaryKey({ columns: [t.userId, t.courseId] }),
 }));
@@ -367,6 +401,22 @@ export const invoices = pgTable('invoices', {
 
 	status: invoiceStatusEnum('status').notNull().default('issued'),
 	type: invoiceTypeEnum('type').notNull().default('one_time'),
+	kind: invoiceKindEnum('kind').notNull().default('invoice'),
+	correctsInvoiceId: uuid('corrects_invoice_id'),   // for kind = correction
+
+	taxTreatment: taxTreatmentEnum('tax_treatment').notNull().default('standard'),
+	customerCountry: text('customer_country'),        // ISO 3166-1 alpha-2
+	serviceDate: timestamp('service_date'),           // Leistungsdatum
+
+	// Payment linkage — lets the DATEV export and reconciliation tie documents to money movements
+	paymentProvider: text('payment_provider'),        // stripe | paypal
+	paymentReference: text('payment_reference').unique(), // Stripe PI/refund id, PayPal capture/refund id
+	orderReference: text('order_reference'),          // Stripe checkout session / subscription, PayPal order
+	paidAt: timestamp('paid_at'),
+
+	// Immutable archive copy (GoBD): the PDF as sent, plus its SHA-256
+	pdfBase64: text('pdf_base64'),
+	contentHash: text('content_hash'),
 
 	invoiceDate: timestamp('invoice_date').notNull().defaultNow(),
 	createdAt: timestamp('created_at').notNull().defaultNow(),

@@ -71,10 +71,33 @@ export const actions: Actions = {
         const thumbnailUrl = data.get('thumbnailUrl') as string;
         const communityEnabled = data.get('communityEnabled') === 'on';
         const trialDays = parseInt(data.get('trialDays') as string) || null;
+        const subscriptionInterval = data.get('subscriptionInterval') === 'year' ? 'year' : 'month';
+
+        // Installment plan — amount is entered in euros
+        const installmentsEnabled = data.get('installmentsEnabled') === 'on';
+        const installmentCount = parseInt(data.get('installmentCount') as string) || null;
+        const installmentEuros = parseFloat(((data.get('installmentAmount') as string) || '').replace(',', '.'));
+        const installmentAmount = Number.isFinite(installmentEuros) && installmentEuros > 0 ? Math.round(installmentEuros * 100) : null;
+
+        if (installmentsEnabled) {
+            if (accessType === 'subscription') {
+                return fail(400, { message: 'Ratenzahlung ist nur für Kurse mit Einmalkauf möglich, nicht für Abos.' });
+            }
+            if (!installmentCount || installmentCount < 2 || installmentCount > 36) {
+                return fail(400, { message: 'Bitte eine Anzahl von 2 bis 36 Raten angeben.' });
+            }
+            if (!installmentAmount) {
+                return fail(400, { message: 'Bitte einen Betrag pro Rate angeben.' });
+            }
+        }
 
         try {
             await db.update(courses)
-                .set({ title, slug, description, fullDescription, price, thumbnailUrl, isPublished, accessType, accessDuration, communityEnabled, trialDays, updatedAt: new Date() })
+                .set({
+                    title, slug, description, fullDescription, price, thumbnailUrl, isPublished, accessType, accessDuration, communityEnabled, trialDays,
+                    subscriptionInterval, installmentsEnabled, installmentCount, installmentAmount,
+                    updatedAt: new Date(),
+                })
                 .where(eq(courses.id, params.id));
             
             return { success: true };

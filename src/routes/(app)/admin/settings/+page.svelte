@@ -1,7 +1,6 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
     import { toast } from 'svelte-sonner';
-    import { invalidateAll } from '$app/navigation';
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
@@ -16,6 +15,8 @@
     import { getContext } from "svelte";
     import { getT as getTranslator, langNames, supportedLangs, type LangKey } from "$lib/i18n";
     import MediaPicker from "$lib/components/MediaPicker.svelte";
+    import { Calculator } from "lucide-svelte";
+    import { ACCOUNT_LABELS, DEFAULT_ACCOUNTS, type AccountMapping, type ChartOfAccounts } from "$lib/accounting/accounts";
 
     const langCtx = getContext<{ lang: LangKey }>('i18n');
     const t = $derived(getTranslator(langCtx.lang));
@@ -46,6 +47,17 @@
         invoiceFooter   = settings?.invoiceFooter   ?? '';
         invoicePrefix   = settings?.invoicePrefix   ?? 'INV';
     });
+
+    // ── Accounting / DATEV state ─────────────────────────────────────────────
+    let datevChart = $state<ChartOfAccounts>('SKR03');
+    let accountOverrides = $state<Partial<AccountMapping>>({});
+    $effect(() => {
+        datevChart = settings?.datevChartOfAccounts === 'SKR04' ? 'SKR04' : 'SKR03';
+        try { accountOverrides = JSON.parse(settings?.datevAccounts || '{}'); } catch { accountOverrides = {}; }
+    });
+    const accountKeys = Object.keys(ACCOUNT_LABELS) as (keyof AccountMapping)[];
+    const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    let templateError = $state('');
 
     // ── Checkout customization state ─────────────────────────────────────────
     type LegalItem = { text: string; required: boolean };
@@ -89,6 +101,13 @@
         { name: '{{currency_symbol}}',    desc: 'Währungssymbol, z.B. €' },
         { name: '{{reverse_charge_row}}', desc: 'Hinweis-Zeile wenn Reverse Charge gilt' },
         { name: '{{notes}}',              desc: 'Fußtext / Rechtliche Hinweise' },
+        { name: '{{document_title}}',     desc: 'Rechnung / Rechnungskorrektur (Pflicht)' },
+        { name: '{{service_date}}',       desc: 'Leistungsdatum (Pflicht)' },
+        { name: '{{tax_note}}',           desc: 'Steuerhinweis: Reverse Charge, § 19, Drittland, OSS (Pflicht)' },
+        { name: '{{reference_note}}',     desc: 'Bezug auf die Originalrechnung bei Korrekturen (Pflicht)' },
+        { name: '{{payment_note}}',       desc: 'Zahlungsvermerk „Bezahlt am … über …“' },
+        { name: '{{company_tax_number}}', desc: 'Steuernummer (Pflicht, falls keine USt-IdNr.)' },
+        { name: '{{company_legal}}',      desc: 'Geschäftsführung / Handelsregister' },
     ];
     // ── Per-theme custom CSS ──────────────────────────────────────────────────
     let themeCustomCssMap = $state<Record<string, string>>({});
@@ -248,6 +267,7 @@
         { id: 'system',       label: getT('settingsTabSystem'),       icon: Server },
         { id: 'database',     label: getT('settingsTabDatabase'),     icon: Database },
         { id: 'invoices',     label: 'Rechnungsvorlage',              icon: FileText },
+        { id: 'accounting',   label: 'Buchhaltung & DATEV',           icon: Calculator },
     ]);
 
     // ── DB migration state ────────────────────────────────────────────
@@ -392,7 +412,8 @@
                 <form method="POST" action="?/updateIntegrations" use:enhance={() => {
                     isSaving = true;
                     return async ({ update, result }) => {
-                        await update();
+                        // reset: false — a form reset restores the values from page load, not the saved ones
+                        await update({ reset: false });
                         isSaving = false;
                         if (result.type === 'success') toast.success('Integrationen gespeichert');
                         else toast.error('Fehler beim Speichern');
@@ -539,6 +560,27 @@
                                     </button>
                                 </div>
                             </div>
+
+                            <div class="grid gap-2">
+                                <div class="flex items-center gap-2">
+                                    <Label for="paypalWebhookId">Webhook ID</Label>
+                                    {#if envVars?.paypalWebhookId}
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">Via Umgebungsvariable aktiv</span>
+                                    {:else if settings?.paypalWebhookId}
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">✓ Gespeichert</span>
+                                    {/if}
+                                </div>
+                                <Input id="paypalWebhookId" name="paypalWebhookId" value={settings?.paypalWebhookId || ''}
+                                    placeholder={envVars?.paypalWebhookId ? '(Umgebungsvariable aktiv — hier überschreiben)' : '8PT597110X687430LKGECATA'}
+                                    class="bg-background/50 font-mono" />
+                                <p class="text-xs text-muted-foreground">
+                                    Damit Rückerstattungen und Käuferschutz-Fälle bei PayPal den Kurszugang automatisch entziehen:
+                                    im PayPal Developer Dashboard → deine App → <em>Add Webhook</em> mit der URL
+                                    <code class="font-mono">{settings?.siteUrl || 'https://deine-domain.de'}/api/paypal/webhook</code>
+                                    und den Events <code class="font-mono">PAYMENT.CAPTURE.REFUNDED</code>, <code class="font-mono">PAYMENT.CAPTURE.REVERSED</code>,
+                                    <code class="font-mono">CUSTOMER.DISPUTE.CREATED</code>, <code class="font-mono">CUSTOMER.DISPUTE.RESOLVED</code> anlegen und die angezeigte Webhook ID hier eintragen.
+                                </p>
+                            </div>
                         </div>
 
                         <!-- Payment Methods Section -->
@@ -641,7 +683,7 @@
                 <form method="POST" action="?/updateInvoicing" use:enhance={() => {
                     isSaving = true;
                     return async ({ update, result }) => {
-                        await update();
+                        await update({ reset: false });
                         isSaving = false;
                         if (result.type === 'success') toast.success('Steuer- & Rechnungseinstellungen gespeichert');
                         else toast.error('Fehler beim Speichern — bitte Konsole prüfen');
@@ -695,9 +737,27 @@
                                 </div>
                             </div>
 
-                            <div class="grid gap-2">
-                                <Label for="companyPhone">Telefon (optional)</Label>
-                                <Input id="companyPhone" name="companyPhone" value={settings?.companyPhone || ''} placeholder="+49 30 12345678" class="bg-background/50" />
+                            <div class="grid sm:grid-cols-2 gap-4">
+                                <div class="grid gap-2">
+                                    <Label for="companyTaxNumber">Steuernummer</Label>
+                                    <Input id="companyTaxNumber" name="companyTaxNumber" value={settings?.companyTaxNumber || ''} placeholder="12/345/67890" class="bg-background/50 font-mono" />
+                                    <p class="text-xs text-muted-foreground">Pflicht auf der Rechnung, wenn keine USt-IdNr. angegeben ist.</p>
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="companyPhone">Telefon (optional)</Label>
+                                    <Input id="companyPhone" name="companyPhone" value={settings?.companyPhone || ''} placeholder="+49 30 12345678" class="bg-background/50" />
+                                </div>
+                            </div>
+
+                            <div class="grid sm:grid-cols-2 gap-4">
+                                <div class="grid gap-2">
+                                    <Label for="companyManagingDirector">Geschäftsführung (bei GmbH/UG)</Label>
+                                    <Input id="companyManagingDirector" name="companyManagingDirector" value={settings?.companyManagingDirector || ''} placeholder="Maria Muster" class="bg-background/50" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="companyRegister">Registergericht &amp; -nummer</Label>
+                                    <Input id="companyRegister" name="companyRegister" value={settings?.companyRegister || ''} placeholder="Amtsgericht Berlin HRB 12345" class="bg-background/50" />
+                                </div>
                             </div>
                         </div>
 
@@ -836,13 +896,135 @@
                 </form>
             </GlassCard>
 
+            {:else if activeTab === 'accounting'}
+            <GlassCard variant="neo" class="p-0 overflow-hidden">
+                <form method="POST" action="?/updateAccounting" use:enhance={() => {
+                    isSaving = true;
+                    return async ({ update, result }) => {
+                        await update({ reset: false });
+                        isSaving = false;
+                        if (result.type === 'success') toast.success('Buchhaltungseinstellungen gespeichert');
+                        else toast.error((result as any).data?.message ?? 'Fehler beim Speichern');
+                    };
+                }}>
+                    <div class="p-8 space-y-8">
+                        <!-- Steuerliche Einordnung -->
+                        <div class="space-y-4">
+                            <div class="border-b border-white/10 pb-4">
+                                <h2 class="text-xl font-bold">Umsatzsteuer</h2>
+                                <p class="text-sm text-muted-foreground">Bestimmt, welche Steuer auf Rechnungen ausgewiesen und wie im DATEV-Export gebucht wird. Im Zweifel mit dem Steuerberater klären.</p>
+                            </div>
+                            <label class="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" name="smallBusiness" class="w-4 h-4 mt-0.5 accent-primary" checked={settings?.smallBusiness ?? false} />
+                                <div>
+                                    <p class="font-medium text-sm">Kleinunternehmer (§ 19 UStG)</p>
+                                    <p class="text-xs text-muted-foreground">Keine Umsatzsteuer auf Rechnungen, stattdessen der Hinweis nach § 19 UStG.</p>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" name="ossEnabled" class="w-4 h-4 mt-0.5 accent-primary" checked={settings?.ossEnabled ?? false} />
+                                <div>
+                                    <p class="font-medium text-sm">One-Stop-Shop (OSS): EU-Privatkunden mit dem Steuersatz ihres Landes</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Pflicht, sobald die Umsätze an Privatkunden in anderen EU-Ländern 10.000 € im Jahr übersteigen (oder freiwillig).
+                                        Die Steuersätze pflegst du unter <a href="/admin/tax-rates" class="text-primary underline">Steuersätze</a>.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- DATEV -->
+                        <div class="space-y-4">
+                            <div class="border-b border-white/10 pb-4">
+                                <h2 class="text-xl font-bold">DATEV</h2>
+                                <p class="text-sm text-muted-foreground">Diese Angaben bekommst du von deinem Steuerberater. Sie stehen im Kopf der Exportdatei, damit sie in den richtigen Mandanten importiert wird.</p>
+                            </div>
+                            <div class="grid sm:grid-cols-2 gap-4">
+                                <div class="grid gap-2">
+                                    <Label for="datevConsultantNumber">Beraternummer</Label>
+                                    <Input id="datevConsultantNumber" name="datevConsultantNumber" value={settings?.datevConsultantNumber || ''} placeholder="1234567" inputmode="numeric" class="bg-background/50 font-mono" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="datevClientNumber">Mandantennummer</Label>
+                                    <Input id="datevClientNumber" name="datevClientNumber" value={settings?.datevClientNumber || ''} placeholder="10001" inputmode="numeric" class="bg-background/50 font-mono" />
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="datevChartOfAccounts">Kontenrahmen</Label>
+                                    <FormSelect id="datevChartOfAccounts" name="datevChartOfAccounts" bind:value={datevChart}>
+                                        <option value="SKR03">SKR03</option>
+                                        <option value="SKR04">SKR04</option>
+                                    </FormSelect>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="grid gap-2">
+                                        <Label for="datevAccountLength">Sachkontenlänge</Label>
+                                        <Input id="datevAccountLength" name="datevAccountLength" type="number" min="4" max="8" value={settings?.datevAccountLength ?? 4} class="bg-background/50" />
+                                    </div>
+                                    <div class="grid gap-2">
+                                        <Label for="datevFiscalYearStartMonth">Wirtschaftsjahr ab</Label>
+                                        <FormSelect id="datevFiscalYearStartMonth" name="datevFiscalYearStartMonth" value={String(settings?.datevFiscalYearStartMonth ?? 1)}>
+                                            {#each MONTHS as m, i}<option value={String(i + 1)}>{m}</option>{/each}
+                                        </FormSelect>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Konten -->
+                        <div class="space-y-4">
+                            <div class="border-b border-white/10 pb-4">
+                                <h2 class="text-xl font-bold">Konten</h2>
+                                <p class="text-sm text-muted-foreground">
+                                    Leere Felder verwenden den {datevChart}-Standard (grau). Das OSS-Erlöskonto hat bewusst keinen Standard: DATEV kennt dafür mehrere Varianten, bitte vom Steuerberater festlegen lassen.
+                                </p>
+                            </div>
+                            <input type="hidden" name="datevAccounts" value={JSON.stringify(accountOverrides)} />
+                            <div class="grid sm:grid-cols-2 gap-4">
+                                {#each accountKeys as key}
+                                    <div class="grid gap-2">
+                                        <Label for="acc-{key}">{ACCOUNT_LABELS[key]}</Label>
+                                        <Input
+                                            id="acc-{key}"
+                                            value={accountOverrides[key] ?? ''}
+                                            oninput={(e: Event) => { accountOverrides = { ...accountOverrides, [key]: (e.currentTarget as HTMLInputElement).value.trim() }; }}
+                                            placeholder={DEFAULT_ACCOUNTS[datevChart][key] || (key === 'feesTaxKey' ? 'keiner' : 'bitte festlegen')}
+                                            class="bg-background/50 font-mono"
+                                        />
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="px-8 py-4 bg-muted/30 border-t border-white/10 flex items-center justify-between gap-4">
+                        <a href="/admin/accounting" class="text-sm text-primary hover:underline">Zum Abgleich &amp; DATEV-Export →</a>
+                        <Button type="submit" disabled={isSaving} class="shadow-lg shadow-primary/20">
+                            {isSaving ? 'Speichern…' : 'Speichern'}
+                        </Button>
+                    </div>
+                </form>
+            </GlassCard>
+
             {:else if activeTab === 'invoices'}
             <GlassCard variant="neo" class="p-0 overflow-hidden">
                 <form method="POST" action="?/updateInvoiceTemplate" use:enhance={() => {
                     isSaving = true;
-                    return async ({ update }) => { await update({ reset: false }); isSaving = false; };
+                    templateError = '';
+                    return async ({ update, result }) => {
+                        await update({ reset: false });
+                        isSaving = false;
+                        if (result.type === 'failure') templateError = (result.data?.message as string) ?? 'Speichern fehlgeschlagen';
+                        else if (result.type === 'success') toast.success('Vorlage gespeichert — gilt für neue Rechnungen');
+                    };
                 }}>
                     <div class="p-8 space-y-8">
+                        {#if templateError}
+                            <p class="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">{templateError}</p>
+                        {/if}
+                        <p class="text-xs text-muted-foreground rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                            Bereits ausgestellte Rechnungen bleiben unverändert (GoBD). Das archivierte PDF hat ein festes, rechtskonformes Layout;
+                            diese Vorlage bestimmt die Online-Ansicht.
+                        </p>
                         <div class="border-b border-white/10 pb-4">
                             <h2 class="text-xl font-bold">Rechnungsvorlage</h2>
                             <p class="text-sm text-muted-foreground mt-1">
@@ -1024,8 +1206,7 @@
                 <form method="POST" action="?/updateSettings" use:enhance={() => {
                     isSaving = true;
                     return async ({ update, result }) => {
-                        await update();
-                        await invalidateAll();
+                        await update({ reset: false });
                         isSaving = false;
                         if (result.type === 'success') toast.success('Einstellungen gespeichert');
                         else toast.error('Fehler beim Speichern');

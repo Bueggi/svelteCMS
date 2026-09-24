@@ -125,12 +125,14 @@ export function enrollmentRevokedEmail({
 }: {
     name: string;
     courseTitle: string;
-    reason: 'refund' | 'manual' | 'expired';
+    reason: 'refund' | 'manual' | 'expired' | 'dispute' | 'payment_failed';
 }) {
     const reasonText = {
         refund: 'Dein Kauf wurde erstattet.',
         manual: 'Dein Zugang wurde vom Administrator entfernt.',
         expired: 'Dein Zugang ist abgelaufen.',
+        dispute: 'Die Zahlung wurde zurückgebucht bzw. storniert.',
+        payment_failed: 'Die Zahlung konnte nicht eingezogen werden und die Zahlungsvereinbarung wurde beendet.',
     }[reason];
 
     return layout(`
@@ -162,6 +164,26 @@ export function refundConfirmEmail({
           <p style="margin:0;font-size:17px;font-weight:bold;color:#1a1410;">Erstattet: ${amountStr}</p>
           <p style="margin:4px 0 0;color:#9c8878;font-size:13px;">Es kann 5–10 Werktage dauern, bis der Betrag auf deinem Konto erscheint.</p>
         </div>
+        ${divider()}
+        ${p('Falls du Fragen hast, antworte einfach auf diese E-Mail.')}
+    `);
+}
+
+export function paymentFailedEmail({
+    name,
+    courseTitle,
+    manageUrl,
+}: {
+    name: string;
+    courseTitle: string;
+    manageUrl: string;
+}) {
+    return layout(`
+        ${h1('Zahlung fehlgeschlagen')}
+        ${p(`Hallo ${name},`)}
+        ${p(`die fällige Zahlung für <strong>${courseTitle}</strong> konnte leider nicht eingezogen werden. Dein Kurszugang ist deshalb pausiert.`)}
+        ${p('Sobald die Zahlung erfolgreich ist, wird dein Zugang automatisch wieder freigeschaltet. Bitte prüfe deine Zahlungsmethode.')}
+        ${btn('Zahlung prüfen', manageUrl)}
         ${divider()}
         ${p('Falls du Fragen hast, antworte einfach auf diese E-Mail.')}
     `);

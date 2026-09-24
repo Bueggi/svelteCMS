@@ -3,6 +3,7 @@
     import { Button } from "$lib/components/ui/button";
     import UserMenu from "$lib/components/UserMenu.svelte";
     import {
+        Calculator,
         LayoutDashboard,
         BookOpen,
         Settings,
@@ -52,6 +53,7 @@
         { href: '/admin/automations',label: getT('navAutomations'),  icon: Zap },
         { href: '/admin/funnels',    label: getT('navFunnels'),      icon: GitBranch },
         { href: '/admin/invoices',   label: getT('navInvoices'),     icon: FileText },
+        ...(user?.role === 'admin' ? [{ href: '/admin/accounting', label: 'Buchhaltung', icon: Calculator }] : []),
         { href: '/admin/media',      label: getT('navMedia'),        icon: Images },
         { href: '/admin/settings',   label: getT('navSettings'),     icon: Settings },
     ]);

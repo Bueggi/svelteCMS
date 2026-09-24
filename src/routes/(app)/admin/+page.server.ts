@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { courses, enrollments, user, purchases, invoices } from '$lib/server/db/schema';
-import { count, desc, sum, eq, and, sql } from 'drizzle-orm';
+import { count, desc, sum, eq, and, sql, isNotNull, isNull, lt, min } from 'drizzle-orm';
 import { fail, type Actions } from '@sveltejs/kit';
 import { stripe } from '$lib/server/stripe';
 import type { PageServerLoad } from './$types';
@@ -26,21 +26,29 @@ export const load: PageServerLoad = async () => {
         }
     });
 
-    // 5. Total Revenue: one-time purchases + subscription invoice renewals
+    // 5. Total Revenue.
+    // Since the invoicing rework every payment and refund has exactly one document with a payment
+    // reference, so revenue = sum of those (corrections are negative). Older data is counted the
+    // previous way (purchases + subscription renewals) up to the first new-style invoice.
+    const [newRevenue] = await db.select({ value: sum(invoices.totalCents), since: min(invoices.createdAt) })
+        .from(invoices)
+        .where(isNotNull(invoices.paymentReference));
+    const cutover = newRevenue.since ?? new Date();
+
     const [purchaseRevenueResult] = await db.select({
         value: sum(purchases.amount)
     })
     .from(purchases)
-    .where(eq(purchases.status, 'completed'));
+    .where(and(eq(purchases.status, 'completed'), lt(purchases.createdAt, cutover)));
 
     const [subRevenueResult] = await db.select({
         value: sum(invoices.totalCents)
     })
     .from(invoices)
-    .where(eq(invoices.type, 'subscription'));
+    .where(and(eq(invoices.type, 'subscription'), isNull(invoices.paymentReference), lt(invoices.createdAt, cutover)));
 
     const totalRevenueResult = {
-        value: Number(purchaseRevenueResult.value ?? 0) + Number(subRevenueResult.value ?? 0)
+        value: Number(newRevenue.value ?? 0) + Number(purchaseRevenueResult.value ?? 0) + Number(subRevenueResult.value ?? 0)
     };
 
     // 6. Total Refunds

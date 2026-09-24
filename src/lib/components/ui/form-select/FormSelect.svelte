@@ -19,7 +19,7 @@
 <select
 	{id}
 	{name}
-	{value}
+	bind:value
 	{required}
 	{disabled}
 	{onchange}

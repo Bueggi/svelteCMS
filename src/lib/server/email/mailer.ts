@@ -5,10 +5,12 @@ export async function sendMail({
 	to,
 	subject,
 	html,
+	attachments,
 }: {
 	to: string;
 	subject: string;
 	html: string;
+	attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }) {
 	const smtp = await getSmtpConfig();
 
@@ -27,7 +29,7 @@ export async function sendMail({
 	const from = smtp.from || `"Course Platform" <${smtp.user}>`;
 
 	try {
-		const info = await transporter.sendMail({ from, to, subject, html });
+		const info = await transporter.sendMail({ from, to, subject, html, attachments });
 		console.log('[Email] Sent:', info.messageId, '→', to);
 	} catch (err) {
 		console.error('[Email] Failed to send to', to, err);

@@ -2,8 +2,9 @@ import { error, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { courses, upsells, enrollments } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
-import { getEnabledPaymentMethods, getPayPalConfig, getVatConfig, getTaxRates, getSettings } from '$lib/server/settings';
+import { getEnabledPaymentMethods, getPayPalConfig, getVatConfig, getTaxRates, getSettings, getTaxContext } from '$lib/server/settings';
 import type { PageServerLoad } from './$types';
+import { hasActiveAccess } from '$lib/server/access';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     const { courseSlug } = params;
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 eq(enrollments.courseId, course.id)
             )
         });
-        if (existing?.status === 'active') {
+        if (hasActiveAccess(existing)) {
             throw redirect(302, `/courses/${courseSlug}/learn`);
         }
     }
@@ -40,12 +41,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         orderBy: [asc(upsells.order)]
     });
 
-    const [enabledMethods, paypalConfig, vatConfig, allTaxRates, settings] = await Promise.all([
+    const [enabledMethods, paypalConfig, vatConfig, allTaxRates, settings, taxContext] = await Promise.all([
         getEnabledPaymentMethods(),
         getPayPalConfig(),
         getVatConfig(),
         getTaxRates(),
         getSettings(),
+        getTaxContext(),
     ]);
 
     type LegalItem = { text: string; required: boolean };
@@ -68,6 +70,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         reverseChargeEnabled: vatConfig.reverseChargeEnabled,
         operatorCountry: vatConfig.companyCountry,
         taxRates: allTaxRates,
+        taxContext,
         checkoutButtonColor: settings?.checkoutButtonColor ?? null,
         checkoutLegalTexts,
     };

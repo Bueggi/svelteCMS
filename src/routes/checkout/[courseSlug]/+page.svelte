@@ -8,6 +8,7 @@
     import { ShoppingCart, Tag, CheckCircle2, Plus, ArrowRight, Lock, Info, X } from 'lucide-svelte';
     import PageBlocks from '$lib/blocks/PageBlocks.svelte';
     import type { Block } from '$lib/blocks/types';
+    import { determineTax, chargeableAmount, splitGross, type TaxContext } from '$lib/tax';
 
     let { data } = $props();
     let course = $derived(data.course);
@@ -27,9 +28,8 @@
     let allRequiredChecked = $derived(
         (checkoutLegalTexts ?? []).every((item, i) => !item.required || legalChecked[i])
     );
-    let defaultVatRate = $derived(data.vatRate ?? 0);
-    let reverseChargeEnabled = $derived(data.reverseChargeEnabled ?? false);
-    let operatorCountry = $derived(data.operatorCountry ?? 'DE');
+    const taxContext = $derived(data.taxContext as TaxContext);
+    let reverseChargeEnabled = $derived(taxContext.reverseChargeEnabled);
 
     // Upsell & coupon state
     let selectedUpsells = $state<Record<string, boolean>>({});
@@ -38,6 +38,18 @@
     let couponError = $state('');
     let appliedCoupon = $state<{ code: string; discountType: 'percentage' | 'amount'; discountValue: number } | null>(null);
     let isLoading = $state(false);
+
+    // Installment plan
+    const installmentsAvailable = $derived(
+        !!course.installmentsEnabled &&
+        course.accessType !== 'subscription' &&
+        (course.installmentCount ?? 0) >= 2 &&
+        (course.installmentAmount ?? 0) > 0
+    );
+    let paymentPlan = $state<'full' | 'installments'>('full');
+    const isInstallments = $derived(installmentsAvailable && paymentPlan === 'installments');
+    // Price of the main course due today
+    const mainPrice = $derived(isInstallments ? course.installmentAmount! : course.price);
 
     // Billing info
     let billingName = $state(user?.name ?? '');
@@ -51,34 +63,6 @@
     let isBusiness = $state(false);
     let billingVatId = $state('');
 
-    // Derived: is reverse charge applicable?
-    // RC applies when enabled + user declares as business + VAT ID starts with a different EU country code
-    const EU_COUNTRIES = ['AT','BE','BG','CY','CZ','DK','EE','FI','FR','GR','HR','HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK'];
-    let reverseChargeApplies = $derived(
-        reverseChargeEnabled &&
-        isBusiness &&
-        billingVatId.trim().length >= 4 &&
-        EU_COUNTRIES.includes(billingVatId.trim().slice(0, 2).toUpperCase()) &&
-        billingVatId.trim().slice(0, 2).toUpperCase() !== operatorCountry.toUpperCase()
-    );
-
-    // Non-EU buyer: no EU VAT jurisdiction (different from RC)
-    const isNonEU = $derived(
-        reverseChargeEnabled &&
-        !EU_COUNTRIES.includes(billingCountry) &&
-        billingCountry !== operatorCountry.toUpperCase()
-    );
-
-    // Effective VAT rate:
-    //   RC disabled → always global defaultVatRate
-    //   RC enabled + non-EU → 0% (no EU tax jurisdiction)
-    //   RC enabled + EU B2B different country → 0% (Reverse Charge §13b)
-    //   RC enabled + everything else → per-country table rate or global fallback
-    let vatRate = $derived.by(() => {
-        if (!reverseChargeEnabled) return defaultVatRate;
-        if (isNonEU || reverseChargeApplies) return 0;
-        return (data.taxRates ?? []).find((r: any) => r.countryCode === billingCountry && r.isEnabled)?.rate ?? defaultVatRate;
-    });
 
     // Payment method
     const STRIPE_METHODS = ['card', 'sepa_debit', 'klarna', 'link', 'sofort'];
@@ -91,9 +75,11 @@
         paypal:     { label: 'PayPal',        sub: 'PayPal-Konto oder Karte' },
     };
 
+    const RECURRING_METHODS = ['card', 'sepa_debit', 'link'];
     const availableMethods = $derived(
         data.enabledMethods
             .filter((m: string) => STRIPE_METHODS.includes(m) || (m === 'paypal' && !!data.paypalClientId))
+            .filter((m: string) => !isInstallments || RECURRING_METHODS.includes(m))
             .map((m: string) => ({ id: m, ...(METHOD_META[m as keyof typeof METHOD_META] ?? { label: m, sub: '' }) }))
     );
 
@@ -102,7 +88,24 @@
         data.enabledMethods[0] ??
         'card'
     );
+    // Switching to installments can hide the selected method (PayPal, Klarna, SOFORT)
+    $effect(() => {
+        if (!availableMethods.some((m: { id: string }) => m.id === selectedMethod)) {
+            selectedMethod = availableMethods[0]?.id ?? 'card';
+        }
+    });
     const isStripeMethod = $derived(STRIPE_METHODS.includes(selectedMethod));
+
+    // Same rules as the server (checkout API + invoice), so the displayed VAT is the invoiced VAT.
+    // PayPal always charges the gross price, so reverse charge only applies to Stripe methods.
+    const tax = $derived(determineTax(taxContext, {
+        country: billingCountry,
+        vatId: isBusiness ? billingVatId : null,
+        isBusiness: isBusiness && selectedMethod !== 'paypal',
+    }));
+    let reverseChargeApplies = $derived(tax.treatment === 'reverse_charge');
+    const isNonEU = $derived(tax.treatment === 'third_country');
+    let vatRate = $derived(tax.rate);
     const hasPayPal = $derived(data.enabledMethods.includes('paypal') && !!data.paypalClientId);
 
     // PayPal
@@ -137,7 +140,20 @@
                     const res = await fetch('/api/paypal/capture-order', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ orderId: approveData.orderID, courseId: course.id, upsellIds: selectedUpsellIds }),
+                        body: JSON.stringify({
+                            orderId: approveData.orderID,
+                            courseId: course.id,
+                            upsellIds: selectedUpsellIds,
+                            billingAddress: {
+                                name: billingName.trim(),
+                                email: billingEmail.trim(),
+                                street: billingStreet.trim(),
+                                zip: billingZip.trim(),
+                                city: billingCity.trim(),
+                                country: billingCountry,
+                                vatId: (isBusiness && billingVatId.trim()) ? billingVatId.trim() : undefined,
+                            },
+                        }),
                     });
                     const result = await res.json();
                     if (result.success) window.location.href = `/thank-you?course=${result.courseSlug}`;
@@ -162,7 +178,7 @@
     let grossTotal = $derived(
         upsells.reduce(
             (total: number, upsell: any) => total + (selectedUpsells[upsell.id] ? getUpsellPrice(upsell) : 0),
-            course.price
+            mainPrice
         )
     );
 
@@ -177,16 +193,20 @@
     // Gross after discount
     let discountedGross = $derived(Math.max(0, grossTotal - discountAmount));
 
-    // Net total (excl. VAT) — calculated from discounted gross
-    let netTotal = $derived(
-        vatRate > 0 ? Math.round(discountedGross / (1 + vatRate / 100)) : discountedGross
-    );
+    // Amount actually charged (net price for reverse charge) and its VAT split
+    let chargeTotal = $derived(chargeableAmount(discountedGross, taxContext, tax.treatment));
+    let vatAmount = $derived(splitGross(chargeTotal, vatRate).vatCents);
+    let netTotal = $derived(chargeTotal - vatAmount);
 
-    // VAT amount
-    let vatAmount = $derived(discountedGross - netTotal);
-
-    // Amount actually charged (net if reverse charge, discounted gross otherwise)
-    let chargeTotal = $derived(reverseChargeApplies ? netTotal : discountedGross);
+    // Each following rate: percentage coupons apply to every rate, fixed amounts only to the first
+    let laterRateCharge = $derived.by(() => {
+        if (!isInstallments) return 0;
+        const rate = course.installmentAmount!;
+        const discounted = appliedCoupon?.discountType === 'percentage'
+            ? rate - Math.round(rate * appliedCoupon.discountValue / 100)
+            : rate;
+        return chargeableAmount(discounted, taxContext, tax.treatment);
+    });
 
     async function applyCoupon() {
         const code = couponCode.trim();
@@ -243,6 +263,7 @@
                     selectedMethod: isStripeMethod ? selectedMethod : undefined,
                     reverseCharge: reverseChargeApplies,
                     billingAddress,
+                    paymentPlan: isInstallments ? 'installments' : 'full',
                     legalChecks: checkoutLegalTexts.filter((_, i) => legalChecked[i]).map(item => item.text),
                 })
             });
@@ -303,6 +324,31 @@
                         </div>
                     </div>
                 </div>
+
+                {#if installmentsAvailable}
+                    <div class="bg-card border rounded-xl p-6 space-y-3">
+                        <h2 class="text-sm font-medium text-muted-foreground uppercase tracking-wide">Zahlungsart</h2>
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onclick={() => paymentPlan = 'full'}
+                                class="flex flex-col items-start gap-1 p-4 rounded-lg border text-left transition-all {paymentPlan === 'full' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-muted-foreground/60'}"
+                            >
+                                <span class="font-medium text-sm {paymentPlan === 'full' ? 'text-primary' : ''}">Einmalzahlung</span>
+                                <span class="text-lg font-bold">€{formatPrice(course.price)}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onclick={() => paymentPlan = 'installments'}
+                                class="flex flex-col items-start gap-1 p-4 rounded-lg border text-left transition-all {paymentPlan === 'installments' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-muted-foreground/60'}"
+                            >
+                                <span class="font-medium text-sm {paymentPlan === 'installments' ? 'text-primary' : ''}">Ratenzahlung</span>
+                                <span class="text-lg font-bold">{course.installmentCount} × €{formatPrice(course.installmentAmount!)}</span>
+                                <span class="text-xs text-muted-foreground">monatlich · gesamt €{formatPrice(course.installmentAmount! * course.installmentCount!)}</span>
+                            </button>
+                        </div>
+                    </div>
+                {/if}
 
                 <!-- Order Bumps -->
                 {#each upsells as upsell}
@@ -435,8 +481,8 @@
                     <div class="space-y-2 text-sm border-b pb-4">
                         <h2 class="font-semibold text-base">Zusammenfassung</h2>
                         <div class="flex justify-between">
-                            <span class="text-muted-foreground truncate pr-2">{course.title}</span>
-                            <span class="font-medium flex-shrink-0">€{formatPrice(course.price)}</span>
+                            <span class="text-muted-foreground truncate pr-2">{course.title}{isInstallments ? ` (Rate 1/${course.installmentCount})` : ''}</span>
+                            <span class="font-medium flex-shrink-0">€{formatPrice(mainPrice)}</span>
                         </div>
                         {#each upsells as upsell}
                             {#if selectedUpsells[upsell.id]}
@@ -483,9 +529,14 @@
                         {/if}
 
                         <div class="flex justify-between font-bold text-base pt-1 border-t mt-2">
-                            <span>Gesamt</span>
+                            <span>{isInstallments ? 'Heute fällig' : 'Gesamt'}</span>
                             <span>€{formatPrice(chargeTotal)}</span>
                         </div>
+                        {#if isInstallments}
+                            <p class="text-xs text-muted-foreground">
+                                Danach {course.installmentCount! - 1} × €{formatPrice(laterRateCharge)} monatlich, automatisch abgebucht.
+                            </p>
+                        {/if}
                     </div>
 
                     <!-- Payment method selector -->

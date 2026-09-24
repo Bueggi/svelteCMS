@@ -4,6 +4,8 @@ import { siteSettings } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { invalidateSettings, getEnvVarStatus } from '$lib/server/settings';
 import { getDatabaseUrl } from '$lib/server/config';
+import { REQUIRED_TEMPLATE_VARIABLES } from '$lib/server/invoiceTemplate';
+import { ACCOUNT_LABELS } from '$lib/accounting/accounts';
 import type { PageServerLoad, Actions } from './$types';
 
 function maskDbUrl(raw: string | undefined): string {
@@ -205,30 +207,34 @@ export const actions: Actions = {
 		const paypalClientId = (data.get('paypalClientId') as string)?.trim() || null;
 		const paypalClientSecret = (data.get('paypalClientSecret') as string)?.trim() || null;
 		const paypalSandbox = data.get('paypalSandbox') === 'on';
+		const paypalWebhookId = (data.get('paypalWebhookId') as string)?.trim() || null;
 		const enabledPaymentMethods = (data.get('enabledPaymentMethods') as string) || '["card"]';
 
 		try {
+			const values = {
+				stripeSecretKey,
+				stripePublishableKey,
+				stripeWebhookSecret,
+				stripeTestSecretKey,
+				stripeTestPublishableKey,
+				smtpHost,
+				smtpPort,
+				smtpUser,
+				smtpPass,
+				smtpFrom,
+				smtpSecure,
+				paypalClientId,
+				paypalClientSecret,
+				paypalSandbox,
+				paypalWebhookId,
+				enabledPaymentMethods,
+				updatedAt: new Date(),
+			};
+			// Upsert: a plain UPDATE silently saves nothing while the settings row doesn't exist yet
 			await db
-				.update(siteSettings)
-				.set({
-					stripeSecretKey,
-					stripePublishableKey,
-					stripeWebhookSecret,
-					stripeTestSecretKey,
-					stripeTestPublishableKey,
-					smtpHost,
-					smtpPort,
-					smtpUser,
-					smtpPass,
-					smtpFrom,
-					smtpSecure,
-					paypalClientId,
-					paypalClientSecret,
-					paypalSandbox,
-					enabledPaymentMethods,
-					updatedAt: new Date(),
-				})
-				.where(eq(siteSettings.id, 1));
+				.insert(siteSettings)
+				.values({ id: 1, ...values })
+				.onConflictDoUpdate({ target: siteSettings.id, set: values });
 
 			invalidateSettings();
 			return { success: true };
@@ -252,6 +258,9 @@ export const actions: Actions = {
 		const companyVatId = (data.get('companyVatId') as string)?.trim() || null;
 		const companyEmail = (data.get('companyEmail') as string)?.trim() || null;
 		const companyPhone = (data.get('companyPhone') as string)?.trim() || null;
+		const companyTaxNumber = (data.get('companyTaxNumber') as string)?.trim() || null;
+		const companyManagingDirector = (data.get('companyManagingDirector') as string)?.trim() || null;
+		const companyRegister = (data.get('companyRegister') as string)?.trim() || null;
 		const checkoutButtonColor = (data.get('checkoutButtonColor') as string)?.trim() || null;
 		let checkoutLegalTexts: string | null = null;
 		try {
@@ -274,6 +283,9 @@ export const actions: Actions = {
 					companyVatId,
 					companyEmail,
 					companyPhone,
+					companyTaxNumber,
+					companyManagingDirector,
+					companyRegister,
 					checkoutButtonColor,
 					checkoutLegalTexts,
 					updatedAt: new Date(),
@@ -291,6 +303,9 @@ export const actions: Actions = {
 						companyVatId,
 						companyEmail,
 						companyPhone,
+						companyTaxNumber,
+						companyManagingDirector,
+						companyRegister,
 						checkoutButtonColor,
 						checkoutLegalTexts,
 						updatedAt: new Date(),
@@ -313,6 +328,14 @@ export const actions: Actions = {
 		const invoiceTemplate = (data.get('invoiceTemplate') as string) || null;
 		const invoiceFooter = (data.get('invoiceFooter') as string) || null;
 
+		// A custom template must keep the placeholders for mandatory invoice information
+		if (invoiceTemplate) {
+			const missing = REQUIRED_TEMPLATE_VARIABLES.filter((v) => !invoiceTemplate.includes(`{{${v}}}`));
+			if (missing.length > 0) {
+				return fail(400, { message: `In der Vorlage fehlen Pflicht-Platzhalter: ${missing.map((v) => `{{${v}}}`).join(', ')}` });
+			}
+		}
+
 		try {
 			await db
 				.insert(siteSettings)
@@ -326,6 +349,51 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Update invoice template error:', error);
 			return fail(500, { message: 'Failed to update invoice template' });
+		}
+	},
+
+	updateAccounting: async ({ request, locals }) => {
+		if (locals.user?.role !== 'admin') return fail(403, { message: 'Nur für Administratoren' });
+		const data = await request.formData();
+
+		const digits = (name: string) => ((data.get(name) as string) ?? '').replace(/\D/g, '') || null;
+		const datevChartOfAccounts = data.get('datevChartOfAccounts') === 'SKR04' ? 'SKR04' : 'SKR03';
+		const datevAccountLength = Math.min(8, Math.max(4, parseInt(data.get('datevAccountLength') as string, 10) || 4));
+		const datevFiscalYearStartMonth = Math.min(12, Math.max(1, parseInt(data.get('datevFiscalYearStartMonth') as string, 10) || 1));
+
+		let accounts: Record<string, string> = {};
+		try {
+			const raw = JSON.parse((data.get('datevAccounts') as string) || '{}');
+			for (const key of Object.keys(ACCOUNT_LABELS)) {
+				const v = typeof raw[key] === 'string' ? raw[key].trim() : '';
+				if (!v) continue;
+				if (!/^\d{1,9}$/.test(v)) return fail(400, { message: `„${ACCOUNT_LABELS[key as keyof typeof ACCOUNT_LABELS]}“ muss eine Nummer sein.` });
+				accounts[key] = v;
+			}
+		} catch {
+			accounts = {};
+		}
+
+		const values = {
+			smallBusiness: data.get('smallBusiness') === 'on',
+			ossEnabled: data.get('ossEnabled') === 'on',
+			datevConsultantNumber: digits('datevConsultantNumber'),
+			datevClientNumber: digits('datevClientNumber'),
+			datevChartOfAccounts,
+			datevAccountLength,
+			datevFiscalYearStartMonth,
+			datevAccounts: Object.keys(accounts).length > 0 ? JSON.stringify(accounts) : null,
+			updatedAt: new Date(),
+		};
+
+		try {
+			await db.insert(siteSettings).values({ id: 1, ...values })
+				.onConflictDoUpdate({ target: siteSettings.id, set: values });
+			invalidateSettings();
+			return { success: true };
+		} catch (error) {
+			console.error('Update accounting settings error:', error);
+			return fail(500, { message: 'Speichern fehlgeschlagen' });
 		}
 	},
 

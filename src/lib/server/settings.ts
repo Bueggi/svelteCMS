@@ -2,6 +2,7 @@ import { db } from './db';
 import { siteSettings, taxRates } from './db/schema';
 import { eq, and } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
+import type { TaxContext } from '$lib/tax';
 
 type Settings = typeof siteSettings.$inferSelect;
 
@@ -54,12 +55,17 @@ export async function getSmtpConfig() {
 	};
 }
 
-export async function getPayPalConfig(): Promise<{ clientId: string; clientSecret: string; sandbox: boolean } | null> {
+export async function getPayPalConfig(): Promise<{ clientId: string; clientSecret: string; sandbox: boolean; webhookId: string | null } | null> {
 	const s = await getSettings();
 	const clientId = s?.paypalClientId || env.PAYPAL_CLIENT_ID || undefined;
 	const clientSecret = s?.paypalClientSecret || env.PAYPAL_CLIENT_SECRET || undefined;
 	if (!clientId || !clientSecret) return null;
-	return { clientId, clientSecret, sandbox: s?.paypalSandbox ?? true };
+	return {
+		clientId,
+		clientSecret,
+		sandbox: s?.paypalSandbox ?? true,
+		webhookId: s?.paypalWebhookId || env.PAYPAL_WEBHOOK_ID || null,
+	};
 }
 
 /** Returns which credentials are coming from env vars (DB is empty for those) — used for admin UI hints. */
@@ -73,6 +79,7 @@ export async function getEnvVarStatus() {
 		smtpUser:           !s?.smtpUser           && !!env.SMTP_USER,
 		paypalClientId:     !s?.paypalClientId     && !!env.PAYPAL_CLIENT_ID,
 		paypalClientSecret: !s?.paypalClientSecret && !!env.PAYPAL_CLIENT_SECRET,
+		paypalWebhookId:    !s?.paypalWebhookId    && !!env.PAYPAL_WEBHOOK_ID,
 	};
 }
 
@@ -82,6 +89,19 @@ export async function getVatConfig() {
 		vatRate: s?.vatRate ?? 0,
 		reverseChargeEnabled: s?.reverseChargeEnabled ?? false,
 		companyCountry: s?.companyCountry ?? 'DE',
+	};
+}
+
+/** Everything `determineTax` needs — the single source for checkout and invoices. */
+export async function getTaxContext(): Promise<TaxContext> {
+	const [s, rates] = await Promise.all([getSettings(), getTaxRates()]);
+	return {
+		operatorCountry: s?.companyCountry || 'DE',
+		defaultRate: s?.vatRate ?? 0,
+		smallBusiness: s?.smallBusiness ?? false,
+		ossEnabled: s?.ossEnabled ?? false,
+		reverseChargeEnabled: s?.reverseChargeEnabled ?? false,
+		countryRates: Object.fromEntries(rates.filter((r) => r.isEnabled).map((r) => [r.countryCode, r.rate])),
 	};
 }
 

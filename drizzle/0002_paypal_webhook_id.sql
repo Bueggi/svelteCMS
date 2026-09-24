@@ -1,0 +1,1 @@
+ALTER TABLE "site_settings" ADD COLUMN "paypal_webhook_id" text;

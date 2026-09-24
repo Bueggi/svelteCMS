@@ -3,6 +3,7 @@ import { courses, enrollments, userProgress, lessons, modules } from '$lib/serve
 import { eq, and, desc, asc } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
+import { activeEnrollmentFilter } from '$lib/server/access';
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (!locals.user) {
@@ -11,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Fetch user's enrollments with course details
     const userEnrollments = await db.query.enrollments.findMany({
-        where: eq(enrollments.userId, locals.user.id),
+        where: and(eq(enrollments.userId, locals.user.id), activeEnrollmentFilter()),
         with: {
             course: {
                 with: {

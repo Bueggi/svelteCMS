@@ -4,6 +4,7 @@ import { courses, reviews, enrollments, upsells } from '$lib/server/db/schema';
 import { eq, and, desc, avg, count, asc } from 'drizzle-orm';
 import { getEnabledPaymentMethods, getPayPalConfig, getVatConfig, getTaxRates } from '$lib/server/settings';
 import type { PageServerLoad, Actions } from './$types';
+import { hasActiveAccess } from '$lib/server/access';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     const { slug } = params;
@@ -46,7 +47,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         const enrollment = await db.query.enrollments.findFirst({
             where: and(eq(enrollments.userId, locals.user.id), eq(enrollments.courseId, course.id))
         });
-        isEnrolled = !!enrollment;
+        isEnrolled = hasActiveAccess(enrollment);
 
         userReview = await db.query.reviews.findFirst({
             where: and(eq(reviews.userId, locals.user.id), eq(reviews.courseId, course.id))

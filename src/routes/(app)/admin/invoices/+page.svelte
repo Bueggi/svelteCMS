@@ -1,28 +1,11 @@
 <script lang="ts">
-    import { FileText, Download, ExternalLink, Eye, RefreshCw } from 'lucide-svelte';
+    import { FileText, Download, Eye, FileSpreadsheet } from 'lucide-svelte';
     import { PageContainer } from '$lib/components/ui/page-container';
     import { PageHeader } from '$lib/components/ui/page-header';
     import { Table, TableHeader, TableBody, TableHead } from '$lib/components/ui/table';
     import { StatusBadge } from '$lib/components/ui/status-badge';
-    import { Button } from '$lib/components/ui/button';
-    import { invalidateAll } from '$app/navigation';
 
     let { data } = $props();
-
-    let regenerating = $state(false);
-    let regenResult = $state<{ updated: number; errors: number } | null>(null);
-
-    async function regenerateAll() {
-        regenerating = true;
-        regenResult = null;
-        try {
-            const res = await fetch('/api/invoices/regenerate', { method: 'POST' });
-            regenResult = await res.json();
-            await invalidateAll();
-        } finally {
-            regenerating = false;
-        }
-    }
 
     const STATUS_LABELS: Record<string, string> = {
         issued: 'Ausgestellt',
@@ -68,25 +51,20 @@
                 <FileText class="w-4 h-4" />
                 Vorlage bearbeiten
             </a>
-            <Button
-                variant="outline"
-                disabled={regenerating}
-                onclick={regenerateAll}
+            <a
+                href="/admin/accounting"
+                class="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
             >
-                <RefreshCw class="w-4 h-4 mr-2 {regenerating ? 'animate-spin' : ''}" />
-                {regenerating ? 'Wird neu generiert...' : 'Alle neu generieren'}
-            </Button>
+                <FileSpreadsheet class="w-4 h-4" />
+                Buchhaltung &amp; DATEV
+            </a>
         {/snippet}
     </PageHeader>
 
-    {#if regenResult}
-        <div class="rounded-lg border px-4 py-3 text-sm flex items-center gap-2 {regenResult.errors > 0 ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-green-500/30 bg-green-500/5 text-green-700'}">
-            <RefreshCw class="w-4 h-4 shrink-0" />
-            {regenResult.updated} Rechnungen neu generiert
-            {#if regenResult.errors > 0}— {regenResult.errors} Fehler{/if}.
-            Alle offenen PDFs im Browser neu laden, um das neue Design zu sehen.
-        </div>
-    {/if}
+    <p class="text-xs text-muted-foreground">
+        Ausgestellte Rechnungen sind unveränderbar (GoBD). Änderungen an der Vorlage gelten nur für neue Rechnungen;
+        Erstattungen erzeugen automatisch eine Rechnungskorrektur mit eigener Nummer.
+    </p>
 
     {#if data.invoiceList.length === 0}
         <div class="flex flex-col items-center justify-center py-24 text-center text-muted-foreground">
@@ -119,7 +97,9 @@
                         <td class="px-4 py-3 text-sm font-semibold tabular-nums">
                             {formatAmount(inv.totalCents, inv.currency)}
                         </td>
-                        <td class="px-4 py-3 text-sm text-muted-foreground">{TYPE_LABELS[inv.type] ?? inv.type}</td>
+                        <td class="px-4 py-3 text-sm text-muted-foreground">
+                            {inv.kind === 'correction' ? 'Rechnungskorrektur' : (TYPE_LABELS[inv.type] ?? inv.type)}
+                        </td>
                         <td class="px-4 py-3">
                             <StatusBadge
                                 status={inv.status}
@@ -139,25 +119,14 @@
                                     Vorschau
                                 </a>
                                 <a
-                                    href="/api/invoices/{inv.id}?print=1"
+                                    href={inv.hasPdf ? `/api/invoices/${inv.id}?format=pdf` : `/api/invoices/${inv.id}?print=1`}
                                     target="_blank"
                                     class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                                    title="Als PDF drucken"
+                                    title={inv.hasPdf ? 'Archiviertes PDF' : 'Als PDF drucken (Altrechnung ohne archiviertes PDF)'}
                                 >
                                     <Download class="w-3 h-3" />
                                     PDF
                                 </a>
-                                {#if inv.stripePdfUrl}
-                                    <a
-                                        href={inv.stripePdfUrl}
-                                        target="_blank"
-                                        class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium border border-border hover:bg-muted/50 transition-colors"
-                                        title="Stripe PDF"
-                                    >
-                                        <ExternalLink class="w-3 h-3" />
-                                        Stripe
-                                    </a>
-                                {/if}
                             </div>
                         </td>
                     </tr>

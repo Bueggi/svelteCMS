@@ -20,6 +20,14 @@
     let thumbnailUrl = $state(course?.thumbnailUrl ?? '');
     let moduleRatingMap = $derived(data.moduleRatingMap ?? {});
     let selectedAccessType = $state(course?.accessType ?? 'lifetime');
+    let installmentsEnabled = $state(course?.installmentsEnabled ?? false);
+    let installmentCount = $state<number | null>(course?.installmentCount ?? 3);
+    let installmentEuros = $state<number | null>(course?.installmentAmount ? course.installmentAmount / 100 : null);
+    let priceCents = $state<number>(course?.price ?? 0);
+    let settingsError = $state('');
+
+    const installmentTotalCents = $derived(Math.round((installmentEuros ?? 0) * 100) * (installmentCount ?? 0));
+    const euro = (cents: number) => (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
     let activeTab = $state('curriculum'); // 'curriculum' | 'settings'
     let isSaving = $state(false);
@@ -137,11 +145,17 @@
     {#if activeTab === 'settings'}
         <form id="settings-form" method="POST" action="?/updateSettings" use:enhance={() => {
             isSaving = true;
-            return async ({ update }) => {
-                await update();
+            settingsError = '';
+            return async ({ update, result }) => {
+                // reset: false — resetting would snap the inputs back to the values from page load
+                await update({ reset: false });
                 isSaving = false;
+                if (result.type === 'failure') settingsError = (result.data?.message as string) ?? 'Speichern fehlgeschlagen';
             }
         }} class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {#if settingsError}
+                <p class="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">{settingsError}</p>
+            {/if}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="space-y-6">
                     <div class="space-y-2">
@@ -154,7 +168,7 @@
                     </div>
                     <div class="space-y-2">
                         <Label for="price">Price (in cents)</Label>
-                        <Input id="price" name="price" type="number" value={course.price} />
+                        <Input id="price" name="price" type="number" bind:value={priceCents} />
                     </div>
 
                     <div class="space-y-2">
@@ -166,18 +180,58 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-2">
                             <Label for="accessType">Access Type</Label>
-                            <FormSelect id="accessType" name="accessType" value={course.accessType} onchange={(e: any) => selectedAccessType = e.target.value}>
+                            <FormSelect id="accessType" name="accessType" bind:value={selectedAccessType}>
                                 <option value="lifetime">Lifetime</option>
                                 <option value="duration">Fixed Duration</option>
                                 <option value="subscription">Subscription</option>
                             </FormSelect>
                         </div>
+                        {#if selectedAccessType === 'subscription'}
                         <div class="space-y-2">
-                            <Label for="accessDuration">Duration / Interval (Days)</Label>
-                            <Input id="accessDuration" name="accessDuration" type="number" value={course.accessDuration || 0} placeholder="e.g. 30 or 365" />
-                             <p class="text-[10px] text-muted-foreground">For fixed duration or billing cycle.</p>
+                            <Label for="subscriptionInterval">Abrechnungsintervall</Label>
+                            <FormSelect id="subscriptionInterval" name="subscriptionInterval" value={course.subscriptionInterval ?? 'month'}>
+                                <option value="month">Monatlich</option>
+                                <option value="year">Jährlich</option>
+                            </FormSelect>
                         </div>
+                        {:else}
+                        <div class="space-y-2">
+                            <Label for="accessDuration">Zugangsdauer (Tage)</Label>
+                            <Input id="accessDuration" name="accessDuration" type="number" value={course.accessDuration || 0} placeholder="z.B. 30 oder 365" disabled={selectedAccessType !== 'duration'} />
+                            <p class="text-[10px] text-muted-foreground">Nur bei „Fixed Duration“.</p>
+                        </div>
+                        {/if}
                     </div>
+
+                    {#if selectedAccessType !== 'subscription'}
+                    <div class="space-y-3 rounded-lg border border-border/60 p-4">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="installmentsEnabled" name="installmentsEnabled" class="w-4 h-4" bind:checked={installmentsEnabled} />
+                            <Label for="installmentsEnabled">Ratenzahlung anbieten</Label>
+                        </div>
+                        <p class="text-[10px] text-muted-foreground">Käufer:innen können im Checkout zwischen Einmalzahlung und monatlichen Raten wählen. Bleibt eine Rate unbezahlt oder wird eine Zahlung storniert, wird der Zugang automatisch gesperrt.</p>
+                        {#if installmentsEnabled}
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <Label for="installmentCount">Anzahl Raten</Label>
+                                    <Input id="installmentCount" name="installmentCount" type="number" min="2" max="36" bind:value={installmentCount} />
+                                </div>
+                                <div class="space-y-2">
+                                    <Label for="installmentAmount">Betrag pro Rate (€)</Label>
+                                    <Input id="installmentAmount" name="installmentAmount" type="number" min="0.01" step="0.01" bind:value={installmentEuros} placeholder="z.B. 99.00" />
+                                </div>
+                            </div>
+                            {#if installmentCount && installmentEuros}
+                                <p class="text-xs text-muted-foreground">
+                                    {installmentCount} × {euro(Math.round(installmentEuros * 100))} monatlich = <strong class="text-foreground">{euro(installmentTotalCents)}</strong> gesamt
+                                    {#if installmentTotalCents !== priceCents}
+                                        ({installmentTotalCents > priceCents ? '+' : '−'}{euro(Math.abs(installmentTotalCents - priceCents))} ggü. Einmalzahlung)
+                                    {/if}
+                                </p>
+                            {/if}
+                        {/if}
+                    </div>
+                    {/if}
 
                     {#if selectedAccessType === 'subscription'}
                     <div class="space-y-2">

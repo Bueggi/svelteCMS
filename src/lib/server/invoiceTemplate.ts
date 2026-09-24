@@ -3,8 +3,15 @@
  * Variables use {{variable_name}} syntax and are replaced by renderInvoiceHtml().
  *
  * Available variables:
+ *   {{document_title}}     — "Rechnung" or "Rechnungskorrektur"
  *   {{invoice_number}}     — e.g. INV-2026-0001
  *   {{invoice_date}}       — formatted date
+ *   {{service_date}}       — Leistungsdatum
+ *   {{reference_note}}     — for corrections: which invoice is corrected (empty otherwise)
+ *   {{tax_note}}           — legal VAT note (reverse charge, § 19, third country, OSS)
+ *   {{payment_note}}       — e.g. "Bezahlt am 01.02.2026 per Stripe"
+ *   {{company_tax_number}} — Steuernummer line (empty if not set)
+ *   {{company_legal}}      — managing director / commercial register line
  *   {{company_name}}       — seller company name
  *   {{company_address}}    — multi-line seller address (HTML with <br>)
  *   {{company_vat_id}}     — seller VAT ID
@@ -28,7 +35,7 @@ export const DEFAULT_INVOICE_TEMPLATE = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rechnung {{invoice_number}}</title>
+  <title>{{document_title}} {{invoice_number}}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
@@ -288,6 +295,12 @@ export const DEFAULT_INVOICE_TEMPLATE = `<!DOCTYPE html>
       color: var(--gold);
       margin-bottom: 6px;
     }
+    .legal-notes {
+      margin-top: 18px;
+      font-size: 11.5px;
+      color: var(--ink-soft);
+    }
+    .legal-notes p { margin-bottom: 4px; }
     .footer-notes {
       margin-top: 20px;
       font-size: 10px;
@@ -327,10 +340,13 @@ export const DEFAULT_INVOICE_TEMPLATE = `<!DOCTYPE html>
       </div>
     </div>
     <div class="invoice-badge">
-      <div class="invoice-word">Rechnung</div>
+      <div class="invoice-word">{{document_title}}</div>
       <div class="invoice-meta-line">
         <span class="invoice-number">{{invoice_number}}</span>
         <span class="invoice-date">{{invoice_date}}</span>
+      </div>
+      <div class="invoice-meta-line">
+        <span class="invoice-date">Leistungsdatum: {{service_date}}</span>
       </div>
     </div>
   </div>
@@ -386,12 +402,18 @@ export const DEFAULT_INVOICE_TEMPLATE = `<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="legal-notes">
+    <p>{{reference_note}}</p>
+    <p>{{tax_note}}</p>
+    <p>{{payment_note}}</p>
+  </div>
+
   <!-- ── Footer ─────────────────────────────────────────── -->
   <div class="footer">
     <div class="footer-inner">
       <div class="footer-col">
-        <div class="footer-col-label">Bankverbindung</div>
-        Bitte geben Sie bei der Überweisung die Rechnungsnummer <strong>{{invoice_number}}</strong> an.
+        <div class="footer-col-label">Zahlung</div>
+        {{payment_note}}
       </div>
       <div class="footer-col">
         <div class="footer-col-label">Kontakt</div>
@@ -400,9 +422,11 @@ export const DEFAULT_INVOICE_TEMPLATE = `<!DOCTYPE html>
       </div>
       <div class="footer-col">
         <div class="footer-col-label">Steuer</div>
-        USt-IdNr.: {{company_vat_id}}
+        {{company_vat_id}}<br>
+        {{company_tax_number}}
       </div>
     </div>
+    <div class="footer-notes">{{company_legal}}</div>
     <div class="footer-notes">{{notes}}</div>
   </div>
 
@@ -414,7 +438,14 @@ export const DEFAULT_INVOICE_TEMPLATE = `<!DOCTYPE html>
 
 /** Template variables with their descriptions — used in the admin editor hint panel. */
 export const TEMPLATE_VARIABLES = [
+	{ name: '{{document_title}}',   desc: 'Rechnung / Rechnungskorrektur' },
 	{ name: '{{invoice_number}}',   desc: 'Rechnungsnummer, z.B. INV-2026-0001' },
+	{ name: '{{service_date}}',     desc: 'Leistungsdatum (Pflichtangabe)' },
+	{ name: '{{reference_note}}',   desc: 'Bei Korrekturen: Bezug auf die Originalrechnung' },
+	{ name: '{{tax_note}}',         desc: 'Steuerhinweis (Reverse Charge, § 19, Drittland, OSS)' },
+	{ name: '{{payment_note}}',     desc: 'Zahlungsvermerk, z.B. „Bezahlt am … per Stripe“' },
+	{ name: '{{company_tax_number}}', desc: 'Steuernummer der Firma' },
+	{ name: '{{company_legal}}',    desc: 'Geschäftsführung / Handelsregister' },
 	{ name: '{{invoice_date}}',     desc: 'Rechnungsdatum' },
 	{ name: '{{company_name}}',     desc: 'Firmenname (aus Einstellungen)' },
 	{ name: '{{company_address}}',  desc: 'Firmenadresse (mehrzeilig)' },
@@ -434,4 +465,15 @@ export const TEMPLATE_VARIABLES = [
 	{ name: '{{currency_symbol}}',  desc: 'Währungssymbol, z.B. €' },
 	{ name: '{{reverse_charge_row}}', desc: 'Hinweiszeile wenn Reverse Charge gilt' },
 	{ name: '{{notes}}',            desc: 'Fußtext / Rechtliche Hinweise' },
+];
+
+/**
+ * Placeholders a custom template must contain — without them the invoice would lack
+ * mandatory information (§ 14 Abs. 4 UStG) or the tax note required for 0 % VAT.
+ */
+export const REQUIRED_TEMPLATE_VARIABLES = [
+	'document_title', 'invoice_number', 'invoice_date', 'service_date',
+	'company_name', 'company_address', 'company_vat_id', 'company_tax_number',
+	'customer_name', 'customer_address', 'customer_vat_id_row',
+	'items_rows', 'subtotal', 'vat_row', 'total', 'tax_note', 'reference_note',
 ];

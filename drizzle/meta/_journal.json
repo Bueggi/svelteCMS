@@ -8,6 +8,27 @@
       "when": 1789759626458,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790234723693,
+      "tag": "0001_installments",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790235684404,
+      "tag": "0002_paypal_webhook_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790237107654,
+      "tag": "0003_invoicing_datev",
+      "breakpoints": true
     }
   ]
 }

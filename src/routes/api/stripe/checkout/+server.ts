@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { getStripeClient } from '$lib/server/stripe';
-import { getStripeKey, getStripeTestKey, getEnabledPaymentMethods, getVatConfig, getTaxRateForCountry, getSettings } from '$lib/server/settings';
+import { getStripeKey, getStripeTestKey, getEnabledPaymentMethods, getTaxContext, getSettings } from '$lib/server/settings';
+import { determineTax, chargeableAmount } from '$lib/tax';
 import { db } from '$lib/server/db';
 import { courses, coupons, upsells, funnels, funnelBumps } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -27,9 +28,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         bumpCourseIds?: string[];
         sandboxMode?: boolean;
         legalChecks?: string[];
+        paymentPlan?: 'full' | 'installments';
     };
 
-    const { courseId, upsellIds = [], couponCode, selectedMethod, reverseCharge = false, billingAddress, funnelSlug, bumpCourseIds = [], sandboxMode = false, legalChecks = [] } = body;
+    const { courseId, upsellIds = [], couponCode, selectedMethod, reverseCharge = false, billingAddress, funnelSlug, bumpCourseIds = [], sandboxMode = false, legalChecks = [], paymentPlan = 'full' } = body;
 
     if (!courseId) {
         return error(400, 'Course ID is required');
@@ -37,11 +39,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     const billingCountry = billingAddress?.country?.toUpperCase();
 
-    const [stripeKey, stripeTestKey, vatConfig, countrySpecificRate, siteSettings] = await Promise.all([
+    const [stripeKey, stripeTestKey, taxContext, siteSettings] = await Promise.all([
         getStripeKey(),
         getStripeTestKey(),
-        getVatConfig(),
-        billingCountry ? getTaxRateForCountry(billingCountry) : Promise.resolve(null),
+        getTaxContext(),
         getSettings(),
     ]);
 
@@ -51,14 +52,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (!activeKey) return error(500, sandboxMode ? 'Stripe Test Key ist nicht konfiguriert. Bitte unter Einstellungen → Integrationen hinterlegen.' : 'Stripe is not configured');
     const stripe = getStripeClient(activeKey);
 
-    // Country-specific rate takes priority over global default
-    const effectiveVatRate = countrySpecificRate ?? vatConfig.vatRate;
-
-    // If reverse charge applies, charge net price (remove VAT)
-    const toChargeAmount = (grossAmount: number) =>
-        reverseCharge && effectiveVatRate > 0
-            ? Math.round(grossAmount / (1 + effectiveVatRate / 100))
-            : grossAmount;
+    // Determined server-side (the client's reverseCharge flag is only a hint) and passed on in the
+    // metadata, so the invoice uses exactly the treatment and rate this payment was charged with.
+    const tax = determineTax(taxContext, {
+        country: billingCountry,
+        vatId: billingAddress?.vatId,
+        isBusiness: reverseCharge || !!billingAddress?.vatId,
+    });
+    const toChargeAmount = (grossAmount: number) => chargeableAmount(grossAmount, taxContext, tax.treatment);
 
     const course = await db.query.courses.findFirst({
         where: eq(courses.id, courseId)
@@ -66,6 +67,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     if (!course) {
         return error(404, 'Course not found');
+    }
+
+    const isSubscription = course.accessType === 'subscription';
+    const isInstallments = paymentPlan === 'installments';
+    if (isInstallments && !(
+        !isSubscription &&
+        course.installmentsEnabled &&
+        (course.installmentCount ?? 0) >= 2 &&
+        (course.installmentAmount ?? 0) > 0
+    )) {
+        return error(400, 'Ratenzahlung ist für diesen Kurs nicht verfügbar');
     }
 
     // Resolve upsell courses
@@ -112,8 +124,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
     }
 
-    // Build metadata: all courseIds as comma-separated list
-    const allCourseIds = [courseId, ...upsellItems.map(u => u.course.id), ...bumpItems.map(b => b.course.id)].join(',');
+    // Build metadata: all courseIds as comma-separated list.
+    // Plain subscriptions only carry the course itself (add-ons aren't charged there).
+    const allCourseIds = isSubscription
+        ? courseId
+        : [courseId, ...upsellItems.map(u => u.course.id), ...bumpItems.map(b => b.course.id)].join(',');
 
     // Handle coupon
     let stripeCouponId: string | undefined;
@@ -136,7 +151,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         try {
             const stripeCoupon = await stripe.coupons.create({
                 name: validCoupon.code,
-                duration: 'once',
+                // Installments: a percentage discount applies to every rate, a fixed amount to the first one
+                duration: isInstallments && validCoupon.discountType === 'percentage' ? 'forever' : 'once',
                 percent_off: validCoupon.discountType === 'percentage' ? validCoupon.discountValue : undefined,
                 amount_off: validCoupon.discountType === 'amount' ? validCoupon.discountValue : undefined,
                 currency: validCoupon.discountType === 'amount' ? 'eur' : undefined,
@@ -148,11 +164,56 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
     }
 
-    const isSubscription = course.accessType === 'subscription';
     const stripeInterval = course.subscriptionInterval ?? 'month';
 
+    const oneTimeAddOns = [
+        ...upsellItems.map(u => ({
+            price_data: {
+                currency: 'eur',
+                product_data: {
+                    name: u.course.title,
+                    description: u.course.subtitle || undefined,
+                    images: u.course.thumbnailUrl ? [u.course.thumbnailUrl] : undefined,
+                },
+                unit_amount: toChargeAmount(u.discountedPrice),
+            },
+            quantity: 1,
+        })),
+        ...bumpItems.map(b => ({
+            price_data: {
+                currency: 'eur',
+                product_data: {
+                    name: b.course.title,
+                    description: b.course.subtitle || undefined,
+                    images: b.course.thumbnailUrl ? [b.course.thumbnailUrl] : undefined,
+                },
+                unit_amount: toChargeAmount(b.price),
+            },
+            quantity: 1,
+        })),
+    ];
+
     // Build line items — apply reverse charge adjustment if needed
-    const lineItems = isSubscription
+    const lineItems = isInstallments
+        ? [
+            // Monthly rate; the webhook cancels the subscription after the last one is paid.
+            // Add-ons are one-time items billed with the first rate.
+            {
+                price_data: {
+                    currency: 'eur',
+                    product_data: {
+                        name: `${course.title} (Ratenzahlung, ${course.installmentCount} Raten)`,
+                        description: course.subtitle || undefined,
+                        images: course.thumbnailUrl ? [course.thumbnailUrl] : undefined,
+                    },
+                    unit_amount: toChargeAmount(course.installmentAmount!),
+                    recurring: { interval: 'month' as const },
+                },
+                quantity: 1,
+            },
+            ...oneTimeAddOns,
+        ]
+        : isSubscription
         ? [
             {
                 price_data: {
@@ -181,30 +242,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 },
                 quantity: 1,
             },
-            ...upsellItems.map(u => ({
-                price_data: {
-                    currency: 'eur',
-                    product_data: {
-                        name: u.course.title,
-                        description: u.course.subtitle || undefined,
-                        images: u.course.thumbnailUrl ? [u.course.thumbnailUrl] : undefined,
-                    },
-                    unit_amount: toChargeAmount(u.discountedPrice),
-                },
-                quantity: 1,
-            })),
-            ...bumpItems.map(b => ({
-                price_data: {
-                    currency: 'eur',
-                    product_data: {
-                        name: b.course.title,
-                        description: b.course.subtitle || undefined,
-                        images: b.course.thumbnailUrl ? [b.course.thumbnailUrl] : undefined,
-                    },
-                    unit_amount: toChargeAmount(b.price),
-                },
-                quantity: 1,
-            })),
+            ...oneTimeAddOns,
         ];
 
     // success_url — funnel flow goes to first upsell or funnel thank-you; otherwise default thank-you
@@ -220,7 +258,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const cancelUrl = `${PUBLIC_BASE_URL}/checkout/${course.slug}?canceled=true`;
 
     // Determine Stripe payment methods
-    const STRIPE_VALID_METHODS = ['card', 'sepa_debit', 'klarna', 'link', 'sofort'];
+    // Recurring charges (subscriptions, installments) need a reusable method
+    const STRIPE_VALID_METHODS = isSubscription || isInstallments
+        ? ['card', 'sepa_debit', 'link']
+        : ['card', 'sepa_debit', 'klarna', 'link', 'sofort'];
     let stripeMethods: string[];
     if (selectedMethod && STRIPE_VALID_METHODS.includes(selectedMethod)) {
         // User explicitly selected a specific payment method
@@ -236,7 +277,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         courseId: course.id,
         courseIds: allCourseIds,
         isGuest: locals.user ? 'false' : 'true',
-        reverseCharge: reverseCharge ? 'true' : 'false',
+        reverseCharge: tax.treatment === 'reverse_charge' ? 'true' : 'false',
+        taxTreatment: tax.treatment,
+        taxRate: String(tax.rate),
         billingName: billingAddress?.name || '',
         billingEmail: billingAddress?.email || '',
         billingStreet: billingAddress?.street || '',
@@ -246,20 +289,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         billingVatId: billingAddress?.vatId || '',
         // Stripe metadata values must be strings ≤500 chars each
         legalChecks: legalChecks.length > 0 ? JSON.stringify(legalChecks).slice(0, 500) : '',
+        paymentPlan: isInstallments ? 'installments' : 'full',
+        installmentCount: isInstallments ? String(course.installmentCount) : '',
     };
+    const isRecurring = isSubscription || isInstallments;
 
     try {
         const session = await stripe.checkout.sessions.create({
             payment_method_types: stripeMethods as any,
             line_items: lineItems,
-            mode: isSubscription ? 'subscription' : 'payment',
-            ...(isSubscription ? {
+            mode: isRecurring ? 'subscription' : 'payment',
+            ...(isInstallments ? {
+                subscription_data: { metadata: sharedMetadata },
+                discounts: stripeCouponId ? [{ coupon: stripeCouponId }] : undefined,
+            } : isSubscription ? {
                 subscription_data: {
                     metadata: sharedMetadata,
                     ...(course.trialDays && course.trialDays > 0 ? { trial_period_days: course.trialDays } : {}),
                 },
             } : {
-                invoice_creation: { enabled: true },
+                // No Stripe invoice: the platform issues the (only) invoice, avoiding two documents
+                // with different numbers for one sale (§ 14c UStG)
                 discounts: stripeCouponId ? [{ coupon: stripeCouponId }] : undefined,
                 allow_promotion_codes: stripeCouponId ? undefined : true,
             }),
@@ -269,7 +319,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             client_reference_id: locals.user?.id,
             metadata: sharedMetadata,
             billing_address_collection: 'auto',
-            customer_creation: locals.user ? undefined : 'if_required',
+            // Subscription mode always creates a customer and rejects this parameter
+            customer_creation: locals.user || isRecurring ? undefined : 'if_required',
         });
 
         return json({ url: session.url });

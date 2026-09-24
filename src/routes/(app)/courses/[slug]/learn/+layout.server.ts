@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { courses, enrollments, modules, lessons, userProgress } from '$lib/server/db/schema';
 import { eq, and, asc } from 'drizzle-orm';
 import type { LayoutServerLoad } from './$types';
+import { hasActiveAccess } from '$lib/server/access';
 
 export const load: LayoutServerLoad = async ({ locals, params }) => {
     if (!locals.user) {
@@ -36,7 +37,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
         )
     });
 
-    if (!enrollment) throw redirect(302, `/courses/${courseSlug}`);
+    if (!enrollment || !hasActiveAccess(enrollment)) throw redirect(302, `/courses/${courseSlug}`);
 
     // Drip: compute which lessons are unlocked based on enrollment date
     const enrolledAt = enrollment.enrolledAt;

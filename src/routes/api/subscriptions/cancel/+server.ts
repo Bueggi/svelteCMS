@@ -21,6 +21,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     if (!enrollment) return error(404, 'Enrollment not found');
     if (!enrollment.stripeSubscriptionId) return error(400, 'No Stripe subscription linked');
+    // An installment plan is a purchase paid in rates, not a cancellable subscription
+    if (enrollment.installmentsTotal) return error(400, 'Ratenzahlungen können nicht gekündigt werden');
 
     const stripeKey = await getStripeKey();
     if (!stripeKey) return error(500, 'Stripe not configured');

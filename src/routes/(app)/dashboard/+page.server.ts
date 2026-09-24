@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { enrollments, userProgress } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
+import { hasActiveAccess } from '$lib/server/access';
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (!locals.user) throw redirect(302, '/login');
@@ -32,7 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     const completedSet = new Set(progress.filter(p => p.isCompleted).map(p => p.lessonId));
 
     const enrolledCourses = userEnrollments
-        .filter(e => e.status === 'active')
+        .filter(e => hasActiveAccess(e))
         .map(enrollment => {
             const course = enrollment.course;
             let totalLessons = 0;

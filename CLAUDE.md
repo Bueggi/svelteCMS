@@ -26,7 +26,7 @@ npm run db:studio    # Open Drizzle Studio UI
 npm run db:seed      # Run seed.ts
 ```
 
-There is no test runner script. Schema tests exist at `src/lib/server/db/schema.test.ts`.
+There is no test runner script; run tests with `npx vitest run` (e.g. `src/lib/tax.test.ts`, `src/lib/server/accounting/*.test.ts`).
 
 ## Architecture
 
@@ -59,6 +59,10 @@ adapter-node needs `BODY_SIZE_LIMIT` (default 512 KB is below the 8 MB image upl
 
 ### Payments
 Stripe integration: checkout session creation at `api/stripe/checkout/+server.ts`, webhook handler at `api/stripe/webhook/+server.ts`. Commerce entities: `purchases`, `coupons`, `upsells` (order bumps). Coupons support percentage or fixed-amount discounts, either globally or per-course.
+
+### Invoices & Accounting
+One invoice per payment that actually arrived, one correction (Rechnungskorrektur, negative amounts) per refund — both carry a unique `paymentReference` (Stripe PaymentIntent/refund id, PayPal capture/refund id), which ties documents to money movements. `src/lib/server/invoices.ts` issues them (number + insert in one transaction, idempotent per reference) and stores an immutable PDF (`invoicePdf.ts`, pdfkit) with SHA-256 — never re-render issued invoices (GoBD). VAT is decided by `src/lib/tax.ts` (shared by checkout display, checkout API and invoices); the checkout passes `taxTreatment`/`taxRate` in Stripe metadata so the invoice uses exactly what was charged.
+`src/lib/server/accounting/` builds the monthly journal from Stripe balance transactions + PayPal Transaction Search, reconciles every movement against its document and exports a ZIP (DATEV EXTF Buchungsstapel, PDFs, Rechnungsausgangsbuch) at `/admin/accounting`. All tax/DATEV settings (Kleinunternehmer, OSS, Berater-/Mandantennummer, SKR03/04, accounts) are admin-editable — the app is sold to customers.
 
 ### LMS Structure
 Hierarchy: Course → Module → Lesson. Lessons have types (`video`, `text`, `quiz`) and support drip scheduling (unlock N days after enrollment). User progress tracked in `userProgress` table. Enrollments support `lifetime`, `duration`, and `subscription` access types.

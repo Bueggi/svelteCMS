@@ -16,17 +16,18 @@
     const subscriptions = $derived(data.subscriptions ?? []);
     const invoiceList   = $derived(data.invoiceList   ?? []);
 
-    // invoices tied to a one-time purchase
+    // invoice for a purchase (corrections reference the same purchase, so skip them here)
     const invoiceByPurchaseId = $derived(
-        new Map(invoiceList.map((inv: any) => [inv.purchaseId, inv]))
+        new Map(invoiceList.filter((inv: any) => inv.kind !== 'correction').map((inv: any) => [inv.purchaseId, inv]))
     );
 
-    // standalone subscription invoices (no purchaseId)
-    const subscriptionInvoices = $derived(
-        invoiceList
-            .filter((inv: any) => inv.type === 'subscription')
-            .sort((a: any, b: any) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime())
+    // every document: invoices, installment/subscription invoices and corrections
+    const allInvoices = $derived(
+        [...invoiceList].sort((a: any, b: any) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime())
     );
+
+    // archived PDF when available; older invoices fall back to the printable HTML
+    const invoiceHref = (inv: any) => inv.hasPdf ? `/api/invoices/${inv.id}?format=pdf` : `/api/invoices/${inv.id}?print=1`;
 
     // ── Cancel / reactivate state ─────────────────────────────────────────────
     let actionInProgress = $state<string | null>(null); // courseId being acted on
@@ -84,7 +85,8 @@
     }
 
     function invoiceItemLabel(inv: any) {
-        try { return JSON.parse(inv.items)[0]?.description ?? 'Abo-Zahlung'; } catch { return 'Abo-Zahlung'; }
+        if (inv.kind === 'correction') return 'Rechnungskorrektur';
+        try { return JSON.parse(inv.items)[0]?.description ?? 'Rechnung'; } catch { return 'Rechnung'; }
     }
 </script>
 
@@ -106,6 +108,7 @@
                 {@const busy     = actionInProgress === sub.courseId}
                 {@const feedback = feedbackMap[sub.courseId] ?? null}
                 {@const willEnd  = sub.cancelAtPeriodEnd}
+                {@const isInstallment = !!sub.installmentsTotal}
 
                 <div class="rounded-xl border {willEnd ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-card/60'} p-5 shadow-sm space-y-4">
                     <!-- Header row -->
@@ -114,13 +117,20 @@
                             <div class="flex items-center gap-2">
                                 <Sparkles class="w-4 h-4 text-primary shrink-0" />
                                 <span class="font-semibold text-base">{sub.course?.title ?? 'Mitgliedschaft'}</span>
-                                {#if willEnd}
+                                {#if sub.status === 'suspended'}
+                                    <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Zahlung offen – Zugang pausiert</span>
+                                {:else if willEnd}
                                     <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Kündigung vorgemerkt</span>
                                 {:else}
                                     <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">Aktiv</span>
                                 {/if}
                             </div>
 
+                            {#if isInstallment}
+                                <p class="text-sm text-muted-foreground pl-6">
+                                    Ratenzahlung · <strong class="text-foreground">{sub.installmentsPaid} von {sub.installmentsTotal}</strong> Raten bezahlt
+                                </p>
+                            {/if}
                             {#if sub.currentPeriodEnd}
                                 <p class="text-sm text-muted-foreground flex items-center gap-1.5 pl-6">
                                     <Calendar class="w-3.5 h-3.5" />
@@ -135,7 +145,9 @@
 
                         <!-- Actions -->
                         <div class="flex items-center gap-2 shrink-0">
-                            {#if willEnd}
+                            {#if isInstallment}
+                                <!-- Installment plans end on their own after the last rate -->
+                            {:else if willEnd}
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -189,12 +201,12 @@
         </section>
     {/if}
 
-    <!-- ── Subscription Invoice History ──────────────────────────────────── -->
-    {#if subscriptionInvoices.length > 0}
+    <!-- ── Invoice History ───────────────────────────────────────────────── -->
+    {#if allInvoices.length > 0}
         <section class="space-y-3">
             <div class="flex items-center gap-2 mb-1">
                 <Receipt class="w-4 h-4 text-primary" />
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Abo-Rechnungen</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Rechnungen</h2>
             </div>
 
             <div class="rounded-xl border border-border overflow-hidden bg-card/60 shadow-sm">
@@ -209,7 +221,7 @@
                         </tr>
                     </TableHeader>
                     <TableBody>
-                        {#each subscriptionInvoices as inv}
+                        {#each allInvoices as inv}
                             <TableRow>
                                 <TableCell class="font-mono text-sm">{inv.invoiceNumber}</TableCell>
                                 <TableCell class="whitespace-nowrap text-muted-foreground">{fmtDateShort(inv.invoiceDate)}</TableCell>
@@ -217,7 +229,7 @@
                                 <TableCell class="font-mono font-medium">{fmtCents(inv.totalCents, inv.currency)}</TableCell>
                                 <TableCell class="text-right">
                                     <a
-                                        href="/api/invoices/{inv.id}?print=1"
+                                        href={invoiceHref(inv)}
                                         target="_blank"
                                         class="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted/50 transition-colors"
                                     >
@@ -270,7 +282,7 @@
                                 <TableCell class="text-right">
                                     {#if inv}
                                         <a
-                                            href="/api/invoices/{inv.id}?print=1"
+                                            href={invoiceHref(inv)}
                                             target="_blank"
                                             class="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted/50 transition-colors"
                                         >

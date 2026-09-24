@@ -4,6 +4,7 @@ import { courses, enrollments, communityCategories } from '$lib/server/db/schema
 import { eq, and, asc } from 'drizzle-orm';
 import type { LayoutServerLoad } from './$types';
 import { redirect, error } from '@sveltejs/kit';
+import { hasActiveAccess } from '$lib/server/access';
 
 export const load: LayoutServerLoad = async ({ params, locals, parent }) => {
     if (!locals.user) {
@@ -34,7 +35,7 @@ export const load: LayoutServerLoad = async ({ params, locals, parent }) => {
             )
         });
 
-        if (!enrollment) {
+        if (!hasActiveAccess(enrollment)) {
             throw error(403, 'You are not enrolled in this course.');
         }
     }

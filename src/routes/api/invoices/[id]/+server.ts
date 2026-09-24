@@ -21,6 +21,18 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
 	if (!isOwner && !isAdmin) throw error(403, 'Kein Zugriff');
 
+	// The archived PDF, byte-identical to what was sent to the customer
+	if (url.searchParams.get('format') === 'pdf') {
+		if (!invoice.pdfBase64) throw error(404, 'Für diese Rechnung ist kein archiviertes PDF vorhanden');
+		const title = invoice.kind === 'correction' ? 'Rechnungskorrektur' : 'Rechnung';
+		return new Response(Buffer.from(invoice.pdfBase64, 'base64'), {
+			headers: {
+				'Content-Type': 'application/pdf',
+				'Content-Disposition': `inline; filename="${title}-${invoice.invoiceNumber}.pdf"`,
+			},
+		});
+	}
+
 	const autoPrint = url.searchParams.get('print') === '1';
 	const html = invoice.htmlSnapshot ?? '<p>Keine Rechnungsdaten vorhanden.</p>';
 
